@@ -125,8 +125,8 @@ function bindPageInteractions() {
 }
 
 function bindModalInteractions() {
-  modalRoot.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, button.dataset)));
-  modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", event => { if (event.target.classList.contains("modal-backdrop")) closeModal(); });
+  modalRoot.querySelectorAll('[data-action]:not(.modal-backdrop)').forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, button.dataset)));
+  modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", event => { if (event.target === event.currentTarget) closeModal(); });
   modalRoot.querySelector("#action-form")?.addEventListener("change", event => {
     if (event.target.name === "effort") modalRoot.querySelector("#xxl-note").hidden = event.target.value !== "XXL";
   });
