@@ -1,6 +1,6 @@
 import { addXP, levelFor, milestoneFor, pointsForAction } from "./gamification.js";
 import { createInitialState, exportObject, getCurrentWeek, loadState, newId, saveState, stoneProgress, todayISO, validateImport } from "./data.js";
-import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, stoneForm, visionForm } from "./views.js";
+import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, retroForm, stoneForm, visionForm } from "./views.js";
 
 let state = await loadState();
 let page = location.hash.slice(1) || "home";
