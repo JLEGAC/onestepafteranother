@@ -31,9 +31,12 @@ test("XP events are idempotent and levels advance every 100 XP", () => {
   assert.equal(levelFor(100).into, 0);
 });
 
-test("effort size determines the V1 XP value", () => {
-  assert.equal(pointsForAction({ effort: "S" }), 10);
-  assert.equal(pointsForAction({ effort: "XXL" }), 70);
+test("action XP combines the 5 XP base with the effort bonus", () => {
+  assert.equal(pointsForAction({ effort: "S" }), 15);
+  assert.equal(pointsForAction({ effort: "M" }), 25);
+  assert.equal(pointsForAction({ effort: "L" }), 40);
+  assert.equal(pointsForAction({ effort: "XL" }), 55);
+  assert.equal(pointsForAction({ effort: "XXL" }), 75);
 });
 
 test("week boundaries are Monday through Sunday", () => {
