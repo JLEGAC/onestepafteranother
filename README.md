@@ -1,6 +1,6 @@
-# Un pas après l’autre — prototype PWA
+# Pas à Pas — PWA
 
-Prototype local-first de l’application de développement personnel.
+Application mobile-first de développement personnel, utilisable hors ligne, sans compte et avec des données conservées sur l’appareil.
 
 ## Lancer en local
 
@@ -19,6 +19,18 @@ Ouvre ensuite `http://localhost:4173`. Le service worker et l’installation PWA
 - L’import remplace les données locales après un aperçu et une confirmation.
 - Le service worker met en cache les fichiers de l’application pour permettre son ouverture hors ligne.
 
-## Gamification V1
+## Nouveautés V2
 
-Les actions, points d’étape, bilans et exercices rapportent des XP. Les niveaux et célébrations sont visuels ; les points ne débloquent pas de fonctions en V1.
+- Suivi d’habitudes par calendrier mensuel, vue globale ou par habitude, séries et détail journalier.
+- Défis personnels sur sept jours : un défi actif à la fois, progression par jour, sans retrait de points.
+- Collection de capsules vidéo ajoutées par la personne, avec filtres par besoin. La lecture des liens HTTPS demande une connexion.
+- Badges de progression et ambiances visuelles déverrouillées à certains niveaux.
+- Les XP débloquent uniquement des éléments cosmétiques ; aucune fonction essentielle n’est verrouillée.
+- Les actions terminées rapportent 5 XP de base, auxquels s’ajoute le bonus d’effort : S 10, M 20, L 35, XL 50, XXL 70.
+- Habitude validée : +1 XP. Grand Chelem quotidien : +10 XP, doublés après 7 jours de Grand Chelem consécutifs.
+- Jour de défi validé : +3 XP ; objectif atteint : +15 XP. Capsule marquée comme vue : +3 XP.
+- Les XP V1 déjà enregistrés restent inchangés. La base locale et les sauvegardes V1 sont migrées à la lecture/import.
+
+## Mise à jour GitHub Pages
+
+La version de l’application est `0.2.0`. Avant de remplacer une installation existante, exporte une sauvegarde depuis **Profil**. Le manifest utilise des chemins relatifs (`./`) pour fonctionner sur le sous-chemin du dépôt GitHub Pages. Après publication, ouvre d’abord la page du projet dans le navigateur pour charger la mise à jour, puis retire l’ancienne installation « Un pas après l’autre » et réinstalle « Pas à Pas » pour renouveler son adresse de démarrage et son cache.
