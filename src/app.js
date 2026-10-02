@@ -1,8 +1,11 @@
-import { addXP, levelFor, milestoneFor, pointsForAction } from "./gamification.js";
+import { addXP, badgesFor, levelFor, milestoneFor, pointsForAction, themeRewards } from "./gamification.js";
 import { createInitialState, exportObject, getCurrentWeek, loadState, newId, saveState, stoneProgress, todayISO, validateImport } from "./data.js";
 import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, retroForm, stoneForm, visionForm } from "./views.js";
+import { changeHabitMonth, selectHabitDate, selectHabitFilter, habitForm, challengeForm, capsuleForm } from "./engagement-views.js";
+import { createChallenge, expireChallenges, markCapsuleWatched, markChallengeDay, stopChallenge, toggleHabit } from "./engagement.js";
 
 let state = await loadState();
+if (expireChallenges(state)) await saveState(state);
 let page = location.hash.slice(1) || "home";
 let pendingAction = null;
 let pendingImport = null;
@@ -16,6 +19,7 @@ const modalRoot = document.querySelector("#modal-root");
 const toastRoot = document.querySelector("#toast-root");
 
 function render() {
+  document.documentElement.dataset.theme = state.preferences.theme || "forest";
   app.innerHTML = appShell(state, page);
   if (installPrompt && page === "home" && !window.matchMedia("(display-mode: standalone)").matches) {
     const banner = document.createElement("div");
@@ -116,10 +120,24 @@ function bindPageInteractions() {
       document.querySelectorAll("[data-categories]").forEach(card => card.hidden = !card.dataset.categories.split(" ").includes(category));
     }
   }));
+  document.querySelectorAll("[data-capsule-filter]").forEach(button => button.addEventListener("click", () => {
+    const category = button.dataset.capsuleFilter; const wasActive = button.classList.contains("selected");
+    document.querySelectorAll("[data-capsule-filter]").forEach(item => item.classList.remove("selected"));
+    document.querySelectorAll(".capsule-card").forEach(card => card.hidden = false);
+    if (!wasActive) {
+      button.classList.add("selected");
+      document.querySelectorAll(".capsule-card").forEach(card => card.hidden = !card.dataset.categories.split(" ").includes(category));
+    }
+  }));
   document.querySelectorAll("[data-setting]").forEach(input => input.addEventListener("change", async () => {
     state.preferences[input.dataset.setting] = input.checked;
     await persist();
     toast(input.checked ? "Préférence activée." : "Préférence désactivée.");
+  }));
+  document.querySelectorAll("[data-theme-setting]").forEach(input => input.addEventListener("change", async () => {
+    const theme = themeRewards.find(item => item.id === input.value);
+    if (!theme || levelFor(state.xp.total).level < theme.level) return;
+    state.preferences.theme = theme.id; await persist(); render(); celebrate(`Ambiance ${theme.name} activée !`);
   }));
   document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, button.dataset)));
 }
@@ -141,6 +159,9 @@ function bindModalInteractions() {
   modalRoot.querySelector("#retro-form")?.addEventListener("submit", saveRetro);
   modalRoot.querySelector("#blocker-form")?.addEventListener("submit", saveBlockerChoice);
   modalRoot.querySelector("#custom-tool-form")?.addEventListener("submit", saveCustomTool);
+  modalRoot.querySelector("#habit-form")?.addEventListener("submit", saveHabitForm);
+  modalRoot.querySelector("#challenge-form")?.addEventListener("submit", saveChallengeForm);
+  modalRoot.querySelector("#capsule-form")?.addEventListener("submit", saveCapsuleForm);
   modalRoot.querySelectorAll("[data-stone-template]").forEach(button => button.addEventListener("click", () => fillStoneTemplate(button.dataset.stoneTemplate)));
 }
 
@@ -174,17 +195,118 @@ async function handleAction(action, data = {}) {
   if (action === "import") return importData();
   if (action === "reset") return resetData();
   if (action === "stone-detail") return showStoneDetail(data.id);
+  if (action === "new-habit") return showModal(modal("Ajouter une habitude", habitForm(), `<button class="button button-primary wide" form="habit-form">Ajouter à mon suivi</button>`));
+  if (action === "edit-habit") return showModal(modal("Modifier mon habitude", habitForm(state.habits.find(item => item.id === data.id)), `<button class="button button-primary wide" form="habit-form">Enregistrer</button><button type="button" class="button button-outline" data-action="archive-habit" data-id="${data.id}">Archiver</button>`));
+  if (action === "archive-habit") return archiveHabit(data.id);
+  if (action === "habit-filter") { selectHabitFilter(data.id || ""); render(); }
+  if (action === "habit-month") { changeHabitMonth(Number(data.offset) || 0); render(); }
+  if (action === "habit-date") { selectHabitDate(data.date); render(); }
+  if (action === "toggle-habit") return handleHabitToggle(data.id);
+  if (action === "new-challenge") {
+    if (state.challenges.filter(item => item.status === "active").length >= 1) return toast("Un seul défi actif à la fois. Termine-le ou mets-le de côté pour en choisir un autre.", "🎯");
+    return showModal(modal("Choisir mon défi", challengeForm(state), `<button class="button button-primary wide" form="challenge-form">Lancer ce défi</button>`));
+  }
+  if (action === "challenge-template") {
+    if (state.challenges.filter(item => item.status === "active").length >= 1) return toast("Un seul défi actif à la fois.", "🎯");
+    return showModal(modal("Personnaliser mon défi", challengeForm(state, { title: data.title, description: data.description, targetDays: data.target }), `<button class="button button-primary wide" form="challenge-form">Lancer ce défi</button>`));
+  }
+  if (action === "challenge-today") return handleChallengeDay(data.id);
+  if (action === "stop-challenge") return handleStopChallenge(data.id);
+  if (action === "new-capsule") return showModal(modal("Ajouter une capsule vidéo", capsuleForm(), `<button class="button button-primary wide" form="capsule-form">Ajouter à ma collection</button>`));
+  if (action === "edit-capsule") return showModal(modal("Modifier la capsule", capsuleForm(state.capsules.find(item => item.id === data.id)), `<button class="button button-primary wide" form="capsule-form">Enregistrer</button>`));
+  if (action === "mark-capsule") return handleCapsuleWatched(data.id);
+  if (action === "remove-capsule") return removeCapsule(data.id);
 }
 
 async function completeAction(id) {
   const action = state.actions.find(item => item.id === id);
   if (!action || action.status === "done") return;
+  const before = previousBadges();
   const previousLevel = levelFor(state.xp.total).level;
   action.status = "done"; action.completedAt = new Date().toISOString();
   const points = pointsForAction(action); addXP(state, points, "action", id);
   const currentLevel = levelFor(state.xp.total).level;
-  const message = currentLevel > previousLevel ? `Niveau ${currentLevel} atteint ! ${milestoneFor(state, action)} +${points} XP` : `${milestoneFor(state, action)} +${points} XP`;
+  const badge = newBadgeMessage(before);
+  const newThemes = themeRewards.filter(theme => theme.level > previousLevel && theme.level <= currentLevel).map(theme => `Ambiance ${theme.name} débloquée`).join(" · ");
+  const message = [currentLevel > previousLevel ? `Niveau ${currentLevel} atteint !` : "", newThemes, milestoneFor(state, action), `+${points} XP`, badge].filter(Boolean).join(" · ");
   await persist(); render(); celebrate(message);
+}
+
+function previousBadges() { return new Set(badgesFor(state).filter(item => item.unlocked).map(item => item.id)); }
+
+function newBadgeMessage(before) {
+  const unlocked = badgesFor(state).filter(item => item.unlocked && !before.has(item.id));
+  return unlocked.length ? `Badge obtenu : ${unlocked.map(item => item.title).join(", ")} !` : "";
+}
+
+async function handleHabitToggle(id) {
+  const before = previousBadges();
+  const result = toggleHabit(state, id);
+  if (!result.changed) return;
+  const reward = result.rewards.reduce((sum, item) => sum + item.amount, 0);
+  const badge = newBadgeMessage(before);
+  await persist(); render();
+  if (result.completed && reward) celebrate([`+${reward} XP · ${result.rewards.map(item => item.label).join(" + ")}`, badge].filter(Boolean).join(" · "));
+  else if (result.completed) toast("Habitude de nouveau cochée · les XP de cette date avaient déjà été gagnés.", "🌱");
+  else toast("Habitude décochée. Tes XP déjà gagnés restent acquis.", "🌿");
+}
+
+async function saveHabitForm(event) {
+  event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
+  const existing = state.habits.find(item => item.id === id);
+  const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), emoji: fd.get("emoji").trim() || "🌱", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
+  if (existing) Object.assign(existing, record); else state.habits.unshift(record);
+  await persist(); closeModal(); render(); celebrate(existing ? "Habitude mise à jour." : "Nouvelle habitude ajoutée · +1 XP à chaque pas tenu.");
+}
+
+async function archiveHabit(id) {
+  const habit = state.habits.find(item => item.id === id);
+  if (!habit) return;
+  habit.active = false; habit.archivedAt = todayISO(); await persist(); closeModal(); render(); toast("Habitude archivée. Son historique reste dans ton calendrier.", "🌱");
+}
+
+async function saveChallengeForm(event) {
+  event.preventDefault();
+  if (state.challenges.filter(item => item.status === "active").length >= 1) return toast("Un seul défi actif à la fois.", "🎯");
+  const fd = new FormData(event.currentTarget);
+  const challenge = createChallenge(state, { title: fd.get("title"), description: fd.get("description"), targetDays: fd.get("targetDays"), linkedHabitId: fd.get("linkedHabitId"), linkedStoneId: fd.get("linkedStoneId") });
+  await persist(); closeModal(); render(); celebrate(`Défi lancé : ${challenge.title} · à ton rythme !`);
+}
+
+async function handleChallengeDay(id) {
+  const before = previousBadges();
+  const result = markChallengeDay(state, id);
+  if (!result.changed) return toast("Cette étape n’est pas disponible aujourd’hui.", "🗓️");
+  const reward = result.rewards.reduce((sum, item) => sum + item.amount, 0);
+  const badge = newBadgeMessage(before);
+  await persist(); render();
+  celebrate([result.completed ? `Défi accompli · +${reward} XP` : `Un jour de plus · +${reward} XP`, badge].filter(Boolean).join(" · "));
+}
+
+async function handleStopChallenge(id) {
+  if (!stopChallenge(state, id)) return;
+  await persist(); render(); toast("Défi mis de côté. Tu pourras en choisir un autre quand tu veux.", "🌿");
+}
+
+async function saveCapsuleForm(event) {
+  event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
+  const url = fd.get("url").trim();
+  if (url) { try { if (new URL(url).protocol !== "https:") throw new Error(); } catch { toast("Saisis un lien vidéo HTTPS valide.", "🎬"); return; } }
+  const existing = state.capsules.find(item => item.id === id);
+  const record = { id: id || newId("capsule"), title: fd.get("title").trim(), description: fd.get("description").trim(), category: fd.get("category"), duration: fd.get("duration").trim(), url, watchedAt: existing?.watchedAt || "" };
+  if (existing) Object.assign(existing, record); else state.capsules.unshift(record);
+  await persist(); closeModal(); render(); toast(existing ? "Capsule mise à jour." : "Capsule ajoutée à ta collection !", "🎬");
+}
+
+async function handleCapsuleWatched(id) {
+  const before = previousBadges();
+  if (!markCapsuleWatched(state, id)) return;
+  const badge = newBadgeMessage(before);
+  await persist(); render(); celebrate(["Capsule regardée · +3 XP", badge].filter(Boolean).join(" · "));
+}
+
+async function removeCapsule(id) {
+  state.capsules = state.capsules.filter(item => item.id !== id); await persist(); render(); toast("Capsule retirée de ta collection.", "🎬");
 }
 
 async function planAction(id) {
@@ -324,6 +446,7 @@ function showDecisionResult(event) {
 
 async function saveRetro(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const week = state.weeks.find(item => item.id === fd.get("weekId")) || getCurrentWeek(state); const summary = { mirror: fd.get("mirror").trim(), closedAt: new Date().toISOString(), decisions: {} };
+  const before = previousBadges();
   const retroWin = fd.get("win")?.trim();
   if (retroWin) { state.daily[todayISO()] ||= {}; state.daily[todayISO()].wins ||= []; state.daily[todayISO()].wins.unshift(retroWin); addXP(state, 5, "retro victory", week.id); }
   for (const action of state.actions.filter(a => a.weekId === week.id && a.status !== "done")) {
@@ -333,7 +456,7 @@ async function saveRetro(event) {
     else if (decision === "split") splitRecord(action, "retro");
     else { action.status = "reserve"; action.weekId = ""; action.slot = ""; action.blockerReason = reason; }
   }
-  week.retro = summary; addXP(state, 15, "retro", week.id); await persist(); closeModal(); navigate("week"); celebrate("Cap clôturé · +15 XP pour avoir pris du recul !");
+  week.retro = summary; addXP(state, 15, "retro", week.id); const badge = newBadgeMessage(before); await persist(); closeModal(); navigate("week"); celebrate(["Cap clôturé · +15 XP pour avoir pris du recul !", badge].filter(Boolean).join(" · "));
 }
 
 function showStoneDetail(id) {
