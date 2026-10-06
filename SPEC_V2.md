@@ -31,6 +31,21 @@ La V2 conserve le périmètre et les principes de la [V1](SPEC_V1.md), puis ajou
 - Débloquer des ambiances visuelles aux niveaux 3 et 5, en plus de l’ambiance de départ.
 - Les XP ne sont jamais dépensés et aucun outil essentiel n’est verrouillé derrière un niveau.
 
+## Écrans et navigation
+
+- La barre principale donne accès à Accueil, Vision, Cible, Cap Hebdo et Outils. La Réserve reste masquée jusqu’à une phase ultérieure, tandis que les mécanismes existants de mise en réserve sont conservés. Le logo fourni apparaît dans l’en-tête ; XP, profil et calendrier d’historique restent accessibles en haut.
+- L’accueil présente la batterie et l’humeur côte à côte, la phrase de Vision, les habitudes avec les sept jours de la semaine, les actions du jour et les victoires. Une victoire peut être reliée à un objectif ou à une action.
+- Cible réunit les habitudes et les objectifs. Les habitudes liées à la Vision ou à un objectif portent une étoile ; leurs séries affichent « Premier jour », « Deuxième jour » ou « Série de X jours ».
+- Vision garde « Ce qui résonne », permet d’ajouter des images enregistrées localement et ne présente plus « Les énergies qui m’inspirent ».
+- Cap Hebdo montre le numéro de semaine, un cap prioritaire en texte libre, les actions et le planning horizontal. Le planning affiche d’abord lundi à jeudi et permet de faire défiler vers vendredi à dimanche.
+- Les actions peuvent être déplacées à la souris ou au toucher ; un formulaire jour/moment sert d’alternative accessible au clavier. Un créneau peut contenir plusieurs actions S et les actions S peuvent cohabiter avec une action de taille supérieure. Une seconde action supérieure à S dans le même créneau invite à en choisir un autre. Une case permet de marquer l’action faite.
+- L’historique permet de revoir une journée et sa semaine ; les victoires ont une page dédiée.
+- La Réserve et sa page dédiée sont masquées jusqu’à une phase ultérieure.
+
+## Comportement du planning
+
+Le glisser-déposer est inclus dans cette version. Il gère le glissement tactile sur mobile, la souris sur ordinateur, une sélection jour/moment accessible au clavier, les capacités de créneaux définies ci-dessus, puis sauvegarde la date et le bloc de temps de l’action.
+
 ## Barème d’XP
 
 - Action terminée : 5 XP de base + bonus d’effort — S 10, M 20, L 35, XL 50, XXL 70.
@@ -42,9 +57,9 @@ La V2 conserve le périmètre et les principes de la [V1](SPEC_V1.md), puis ajou
 
 ## Données et migration
 
-- Le schéma local passe à la version 2 et ajoute les habitudes, les journaux d’habitudes, les défis et les capsules.
+- Le schéma local passe à la version 3. Il ajoute les habitudes, les journaux d’habitudes, les défis et les capsules, ainsi que les images de repères et le cap hebdomadaire.
 - Les données V1 sont normalisées à la lecture sans perte des profils, actions ou XP déjà enregistrés.
-- Les exports V2 contiennent les nouvelles données et l’import accepte toujours les exports V1.
+- Les exports V3 contiennent les nouvelles données et l’import accepte toujours les exports V1 et V2.
 - Toutes les données restent sur l’appareil, dans IndexedDB, et sont incluses dans l’export JSON.
 
 ## Hors périmètre

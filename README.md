@@ -30,7 +30,14 @@ Ouvre ensuite `http://localhost:4173`. Le service worker et l’installation PWA
 - Habitude validée : +1 XP. Grand Chelem quotidien : +10 XP, doublés après 7 jours de Grand Chelem consécutifs.
 - Jour de défi validé : +3 XP ; objectif atteint : +15 XP. Capsule marquée comme vue : +3 XP.
 - Les XP V1 déjà enregistrés restent inchangés. La base locale et les sauvegardes V1 sont migrées à la lecture/import.
+- Le tableau de bord réunit batterie, humeur, habitudes de la semaine, actions du jour et victoires.
+- « Cible » rassemble habitudes et objectifs ; « Cap Hebdo » affiche le cap et le planning défilant de la semaine.
+- La Vision est accessible directement, conserve « Ce qui résonne » et accepte des images locales.
+- L’historique permet de consulter les journées passées ; les victoires ont aussi leur page dédiée.
+- L’entrée et la page Réserve restent masquées jusqu’à une phase ultérieure ; les mécanismes existants de mise en réserve restent disponibles.
+- Le planning accepte plusieurs actions S dans un créneau et permet aussi de mêler des actions S avec une action plus grande. Il propose une autre plage si une seconde action plus grande est déposée au même endroit.
+- Les actions du planning se déplacent par glisser-déposer à la souris ou au toucher ; un formulaire accessible au clavier permet aussi de choisir jour et moment. Une case à cocher marque l’action terminée.
 
 ## Mise à jour GitHub Pages
 
-La version de l’application est `0.2.0`. Avant de remplacer une installation existante, exporte une sauvegarde depuis **Profil**. Le manifest utilise des chemins relatifs (`./`) pour fonctionner sur le sous-chemin du dépôt GitHub Pages. Après publication, ouvre d’abord la page du projet dans le navigateur pour charger la mise à jour, puis retire l’ancienne installation « Un pas après l’autre » et réinstalle « Pas à Pas » pour renouveler son adresse de démarrage et son cache.
+La version de l’application est `0.2.0`. Avant de remplacer une installation existante, exporte une sauvegarde depuis **Profil**. Le manifest utilise des chemins relatifs (`./`) pour fonctionner sur le sous-chemin du dépôt GitHub Pages. Après publication, ouvre d’abord la page du projet dans le navigateur pour charger la mise à jour. Si l’ancienne icône installée ouvre une adresse en erreur, retire-la puis réinstalle l’application depuis la page du projet.
