@@ -11,7 +11,7 @@ test("V1 data upgrades without dropping existing profile or gains", () => {
   assert.deepEqual(state.habits, []);
   assert.deepEqual(state.habitLogs, {});
   assert.equal(state.preferences.theme, "forest");
-  assert.equal(state.schemaVersion, 2);
+  assert.equal(state.schemaVersion, 3);
 });
 
 test("habit checks award XP once and the seventh Grand Chelem doubles its bonus", () => {
