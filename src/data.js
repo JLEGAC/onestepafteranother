@@ -1,5 +1,5 @@
 const DB_NAME = "un-pas-apres-lautre";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STATE_KEY = "workspace";
 
 export function mondayISO(date = new Date()) {
@@ -27,12 +27,12 @@ export function newId(prefix = "id") {
 export function createInitialState() {
   const weekStart = mondayISO();
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt: new Date().toISOString(),
-    profile: { vision: "", story: "", essentials: [], guides: [], resonance: [] },
+    profile: { vision: "", story: "", essentials: [], guides: [], resonance: [], resonanceImages: [] },
     stones: [],
     actions: [],
-    weeks: [{ id: weekStart, start: weekStart, end: weekEndISO(weekStart), retro: null }],
+    weeks: [{ id: weekStart, start: weekStart, end: weekEndISO(weekStart), retro: null, objective: "" }],
     daily: {},
     habits: [],
     habitLogs: {},
@@ -107,7 +107,8 @@ export function normalizeState(input) {
   state.profile.essentials = Array.isArray(state.profile.essentials) ? state.profile.essentials : [];
   state.profile.guides = Array.isArray(state.profile.guides) ? state.profile.guides : [];
   state.profile.resonance = Array.isArray(state.profile.resonance) ? state.profile.resonance : [];
-  state.schemaVersion = 2;
+  state.profile.resonanceImages = Array.isArray(state.profile.resonanceImages) ? state.profile.resonanceImages : [];
+  state.schemaVersion = 3;
   return state;
 }
 
@@ -115,9 +116,10 @@ export function getCurrentWeek(state) {
   const start = mondayISO();
   let week = state.weeks.find(item => item.start === start);
   if (!week) {
-    week = { id: start, start, end: weekEndISO(start), retro: null };
+    week = { id: start, start, end: weekEndISO(start), retro: null, objective: "" };
     state.weeks.unshift(week);
   }
+  if (typeof week.objective !== "string") week.objective = "";
   return week;
 }
 
@@ -129,7 +131,7 @@ export function stoneProgress(state, stoneId) {
 }
 
 export function exportObject(state) {
-  return { app: "un-pas-apres-lautre", exportVersion: 2, exportedAt: new Date().toISOString(), data: state };
+  return { app: "un-pas-apres-lautre", exportVersion: 3, exportedAt: new Date().toISOString(), data: state };
 }
 
 export function validateImport(parsed) {
@@ -139,7 +141,7 @@ export function validateImport(parsed) {
   if (!Array.isArray(parsed.data.stones) || !Array.isArray(parsed.data.actions)) {
     throw new Error("La sauvegarde est incomplète : Grandes Pierres ou actions manquantes.");
   }
-  if (parsed.exportVersion !== undefined && ![1, 2].includes(parsed.exportVersion)) {
+  if (parsed.exportVersion !== undefined && ![1, 2, 3].includes(parsed.exportVersion)) {
     throw new Error("Cette sauvegarde provient d’une version plus récente de l’application.");
   }
   return normalizeState(parsed.data);

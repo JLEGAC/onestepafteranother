@@ -1,5 +1,6 @@
-import { getCurrentWeek, stoneProgress, todayISO, weekEndISO } from "./data.js";
+import { getCurrentWeek, mondayISO, stoneProgress, todayISO, weekEndISO } from "./data.js";
 import { levelFor } from "./gamification.js";
+import { activeHabits, habitStreak, isHabitDone, dateShift } from "./engagement.js";
 import { renderCapsulesPage, renderChallengesPage, renderHabitHome, renderHabitsPage, renderRewardsPage } from "./engagement-views.js";
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
@@ -9,19 +10,22 @@ const slots = [["morning", "🌅", "Matin"], ["noon", "☀️", "Midi"], ["after
 
 export function appShell(state, page) {
   const level = levelFor(state.xp.total);
-  const tabs = [["home", "⌂", "Accueil"], ["week", "🧭", "Cap Hebdo"], ["stones", "💎", "Pierres"], ["tools", "🧰", "Outils"]];
-  return `<header class="topbar"><a class="brand" href="#home" data-page="home"><span class="brand-mark">↗</span><span>un pas<br><b>après l’autre</b></span></a><button class="xp-pill" data-page="profile" aria-label="Profil et points"><span>✨</span><span><b>${state.xp.total}</b><small>XP</small></span><span class="level-mini">Niv. ${level.level}</span></button></header>
+  const tabs = [["home", "📊", "Accueil"], ["vision", "🏝️", "Vision"], ["cible", "🎯", "Cible"], ["week", "🧭", "Cap Hebdo"], ["tools", "🧰", "Outils"]];
+  const activePage = page === "stones" || page === "habits" ? "cible" : page;
+  return `<header class="topbar"><a class="brand" href="#home" data-page="home" aria-label="Un pas après l’autre — Accueil"><img src="./logo.svg" alt="Un pas après l’autre"></a><div class="topbar-actions"><button class="xp-pill" data-page="profile" aria-label="Mes points d’expérience"><span>✨</span><span><b>${state.xp.total}</b><small>XP</small></span><span class="level-mini">Niv. ${level.level}</span></button><button class="header-icon" data-page="profile" aria-label="Ouvrir mon profil">👤</button><button class="header-icon" data-page="history" aria-label="Ouvrir l’historique">📅</button></div></header>
     <main id="page-content" class="page-content">${renderPage(state, page)}</main>
-    <nav class="bottom-nav" aria-label="Navigation principale">${tabs.map(([id, icon, label]) => `<button data-page="${id}" class="nav-item ${page === id ? "active" : ""}" aria-current="${page === id ? "page" : "false"}"><span>${icon}</span><small>${label}</small></button>`).join("")}</nav>`;
+    <nav class="bottom-nav" aria-label="Navigation principale">${tabs.map(([id, icon, label]) => `<button type="button" data-page="${id}" class="nav-item ${activePage === id ? "active" : ""}" aria-current="${activePage === id ? "page" : "false"}"><span>${icon}</span><small>${label}</small></button>`).join("")}</nav>`;
 }
 
 export function renderPage(state, page) {
   if (page === "week") return renderWeek(state);
-  if (page === "stones") return renderStones(state);
+  if (page === "stones" || page === "cible") return renderCiblePage(state);
   if (page === "tools") return renderTools(state);
   if (page === "vision") return renderVision(state);
   if (page === "profile") return renderProfile(state);
   if (page === "habits") return renderHabitsPage(state);
+  if (page === "history") return renderHistoryPage(state);
+  if (page === "wins") return renderWinsPage(state);
   if (page === "challenges") return renderChallengesPage(state);
   if (page === "capsules") return renderCapsulesPage(state);
   if (page === "rewards") return renderRewardsPage(state);
@@ -32,19 +36,17 @@ function renderHome(state) {
   const week = getCurrentWeek(state);
   const today = todayISO();
   const daily = state.daily[today] || {};
-  const focused = state.actions.filter(a => a.weekId === week.id && a.plannedDate === today && a.status !== "done");
+  const focused = state.actions.filter(a => a.weekId === week.id && a.plannedDate === today && ["weekly", "done"].includes(a.status));
   const vision = state.profile.vision || "Ta vision commence par une phrase.";
-  const level = levelFor(state.xp.total);
   const pendingRetros = state.weeks.filter(item => item.id !== week.id && !item.retro).sort((a, b) => b.start.localeCompare(a.start));
-  return `${state.preferences.gentleReminders && !daily.dismissedReminder && (!daily.energy || !daily.mood) ? `<div class="gentle-reminder"><span>🌤️</span><span>Un petit point avec toi-même ? Tu peux le faire quand tu en as envie.</span><button class="icon-button" data-action="dismiss-reminder" aria-label="Plus tard">×</button></div>` : ""}${pendingRetros.length ? `<div class="gentle-reminder retro-reminder"><span>✨</span><span>Un bilan de semaine t’attend. Choisis le moment qui te convient.</span><button class="text-button" data-action="retro" data-week="${pendingRetros[0].id}">Le faire →</button></div>` : ""}<section class="hero-card"><div class="eyebrow">TON ESPACE PERSONNEL <span class="sparkle">✦</span></div><h1>Un pas après<br>l’autre.</h1><p>Pas besoin d’aller vite. Il suffit d’avancer vers ce qui compte.</p><div class="hero-stats"><div><strong>${state.actions.filter(a => a.status === "done").length}</strong><span>pas accomplis</span></div><div class="stat-divider"></div><div><strong>${level.title}</strong><span>niveau ${level.level}</span></div></div><div class="level-track"><span style="width:${level.into}%"></span></div><small class="track-caption">${level.into}/100 XP vers le niveau ${level.level + 1}</small></section>
-    <section class="section"><div class="section-heading"><div><div class="eyebrow">TON ÉNERGIE DU JOUR</div><h2>Comment tu te sens ?</h2></div><span class="date-chip">${new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }).format(new Date())}</span></div><div class="checkin-card"><div class="energy-row"><span>⚡ Batterie</span><div class="energy-options">${[25, 50, 75, 100].map(n => `<button data-energy="${n}" class="energy-choice ${daily.energy === n ? "selected" : ""}">${n}%</button>`).join("")}</div></div><div class="mood-row"><span>Humeur</span><div class="moods">${[["😣", "Difficile"], ["😔", "Bas"], ["😴", "Fatigué"], ["🙂", "Bien"], ["😄", "Joyeux"], ["🥰", "Très bien"]].map(([emoji, label]) => `<button data-mood="${emoji}" class="mood-choice ${daily.mood === emoji ? "selected" : ""}" aria-label="${label}">${emoji}</button>`).join("")}</div></div></div></section>
+  return `${state.preferences.gentleReminders && !daily.dismissedReminder && (!daily.energy || !daily.mood) ? `<div class="gentle-reminder"><span>🌤️</span><span>Un petit point avec toi-même ? Tu peux le faire quand tu en as envie.</span><button class="icon-button" data-action="dismiss-reminder" aria-label="Plus tard">×</button></div>` : ""}${pendingRetros.length ? `<div class="gentle-reminder retro-reminder"><span>✨</span><span>Un bilan de semaine t’attend. Choisis le moment qui te convient.</span><button type="button" class="text-button" data-action="retro" data-week="${pendingRetros[0].id}">Le faire →</button></div>` : ""}<section class="checkin-card dashboard-checkin"><div class="dashboard-checkin-block"><h2>Batterie</h2><div class="energy-options">${[25, 50, 75, 100].map(n => `<button type="button" data-energy="${n}" class="energy-choice ${daily.energy === n ? "selected" : ""}">${n}%</button>`).join("")}</div></div><div class="dashboard-checkin-block"><h2>Humeur</h2><div class="moods">${[["😣", "Difficile"], ["😔", "Bas"], ["😴", "Fatigué"], ["🙂", "Bien"], ["😄", "Joyeux"], ["🥰", "Très bien"]].map(([emoji, label]) => `<button type="button" data-mood="${emoji}" class="mood-choice ${daily.mood === emoji ? "selected" : ""}" aria-label="${label}">${emoji}</button>`).join("")}</div></div></section>
+    <section class="vision-strip"><div class="vision-orb">✦</div><div><div class="eyebrow">MA VISION</div><p>« ${esc(vision)} »</p></div><button type="button" class="icon-button" data-page="vision" aria-label="Ouvrir ma vision">✎</button></section>
     ${renderHabitHome(state)}
-    <section class="section"><div class="section-heading"><div><div class="eyebrow">TON CAP HEBDO</div><h2>Le prochain petit pas</h2></div><button class="text-button" data-page="week">Tout voir <span>→</span></button></div>${focused.length ? focused.slice(0, 2).map(a => actionCard(state, a, true)).join("") : `<div class="empty-card"><span class="empty-icon">🪴</span><h3>Un peu d’espace pour choisir.</h3><p>Ajoute une micro-action à ton Cap et donne-lui sa place dans ta journée.</p><button class="button button-primary" data-action="new-action">Choisir un petit pas <span>↗</span></button></div>`}</section>
-    <section class="vision-strip"><div class="vision-orb">✦</div><div><div class="eyebrow">MA VISION</div><p>« ${esc(vision)} »</p></div><button class="icon-button" data-page="vision" aria-label="Modifier ma vision">✎</button></section>
-    <section class="section win-section"><div class="section-heading"><div><div class="eyebrow">LIVRE D’OR</div><h2>Une victoire à garder ?</h2></div><span class="tiny-star">✧</span></div><form class="inline-add" id="win-form"><input name="win" maxlength="180" placeholder="Une fierté, une gratitude…" aria-label="Ajouter une victoire"><button class="add-button" aria-label="Ajouter">+</button></form><div class="win-list">${(daily.wins || []).map((win, i) => `<div class="win-item"><span>✦</span>${esc(win)}<button class="remove-win" data-remove-win="${i}" aria-label="Supprimer cette victoire">×</button></div>`).join("")}</div></section>`;
+    <section class="section"><div class="section-heading"><div><div class="eyebrow">FOCUS DU JOUR</div><h2>Mes actions du jour</h2></div><button type="button" class="text-button" data-page="week">Voir la semaine complète 🧭</button></div>${focused.length ? focused.map(a => actionCard(state, a, true)).join("") : `<div class="empty-card slim"><p>Aucune action choisie pour aujourd’hui. Tu peux garder cette journée libre.</p></div>`}</section>
+    <section class="section win-section"><div class="section-heading"><div><div class="eyebrow">MES VICTOIRES</div><h2>De quoi es-tu fier·e aujourd’hui ?</h2></div><button type="button" class="text-button" data-page="wins">Voir toutes mes victoires 🏆</button></div><form class="victory-form" id="win-form"><div class="inline-add"><input name="win" maxlength="180" placeholder="De quoi es-tu fier·e aujourd’hui ?" aria-label="Ajouter une victoire" required><button type="submit" class="add-button" aria-label="Ajouter">+</button></div><label class="victory-link-label">Cette victoire te permettra-t-elle d’atteindre l’un de tes objectifs ? <small>(facultatif)</small><select name="related"><option value="">Je ne souhaite pas la lier</option>${state.stones.map(stone => `<option value="stone:${esc(stone.id)}">🎯 ${esc(stone.title)}</option>`).join("")}${state.actions.filter(action => action.status !== "abandoned" && action.status !== "split").map(action => `<option value="action:${esc(action.id)}">↳ ${esc(action.title)}</option>`).join("")}</select></label></form><div class="win-list">${(daily.wins || []).map((win, i) => renderVictoryItem(state, win, i)).join("")}</div></section>`;
 }
 
-function actionCard(state, action, compact = false) {
+function actionCard(state, action, compact = false, inWeekList = false) {
   const stone = state.stones.find(s => s.id === action.stoneId);
   const meta = effortMeta[action.effort] || effortMeta.M;
   const primaryButton = action.status === "unassigned"
@@ -53,7 +55,8 @@ function actionCard(state, action, compact = false) {
       ? `<button class="button button-soft button-small" data-action="plan-action" data-id="${action.id}">Embarquer</button>`
       : `<button class="button button-complete button-small" data-action="complete-action" data-id="${action.id}">✓ Terminer</button>`;
   const plannedDay = action.plannedDate ? new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${action.plannedDate}T12:00:00`)) : "";
-  return `<article class="action-card ${action.status === "done" ? "is-done" : ""} ${compact ? "compact" : ""}"><div class="action-top"><span class="stone-label">${stone ? `${esc(stone.icon || "💎")} ${esc(stone.title)}` : "À rattacher à une Grande Pierre"}</span><span class="effort-chip effort-${meta[0].toLowerCase()}">${meta[1]} ${meta[0]}</span></div><h3>${esc(action.title)}</h3>${action.criteria ? `<p class="criteria"><span>✓</span> Fait quand : ${esc(action.criteria)}</p>` : ""}${action.status === "done" ? `<div class="done-ribbon">✨ Bravo, ce pas est accompli !</div>` : `<div class="action-footer">${action.slot || plannedDay ? `<span class="slot-tag">${plannedDay ? `📅 ${plannedDay} · ` : ""}${action.slot ? `${slots.find(s => s[0] === action.slot)?.[1] || ""} ${slots.find(s => s[0] === action.slot)?.[2] || ""}` : ""}</span>` : `<span class="reserve-tag">${action.status === "unassigned" ? "À rattacher" : action.status === "weekly" ? "Dans mon Cap" : "Dans ma réserve"}</span>`}<div class="action-buttons">${primaryButton}${action.status === "weekly" && !action.plannedDate ? `<button class="block-button" data-action="plan-today" data-id="${action.id}">Aujourd’hui</button>` : ""}${action.status === "weekly" ? `<button class="block-button" data-action="blocked" data-id="${action.id}">Je bloque</button>` : ""}<button class="more-button" data-action="edit-action" data-id="${action.id}" aria-label="Modifier l’action">···</button></div></div>`}</article>`;
+  const scheduleHandle = inWeekList && action.status !== "done" ? `<button type="button" class="week-drag-handle" data-action="schedule-action" data-id="${esc(action.id)}" data-drag-action="${esc(action.id)}" aria-label="Déplacer ${esc(action.title)} vers un créneau" title="Glisser vers un créneau ou sélectionner pour choisir">⠿</button>` : "";
+  return `<article class="action-card ${action.status === "done" ? "is-done" : ""} ${compact ? "compact" : ""}"><div class="action-top"><span class="stone-label">${stone ? `${esc(stone.icon || "💎")} ${esc(stone.title)}` : "À rattacher à une Grande Pierre"}</span><span class="effort-chip effort-${meta[0].toLowerCase()}">${meta[1]} ${meta[0]}</span>${scheduleHandle}</div><h3>${esc(action.title)}</h3>${action.criteria ? `<p class="criteria"><span>✓</span> Fait quand : ${esc(action.criteria)}</p>` : ""}${action.status === "done" ? `<div class="done-ribbon">✨ Bravo, ce pas est accompli !</div>` : `<div class="action-footer">${action.slot || plannedDay ? `<span class="slot-tag">${plannedDay ? `📅 ${plannedDay} · ` : ""}${action.slot ? `${slots.find(s => s[0] === action.slot)?.[1] || ""} ${slots.find(s => s[0] === action.slot)?.[2] || ""}` : ""}</span>` : `<span class="reserve-tag">${action.status === "unassigned" ? "À rattacher" : action.status === "weekly" ? "Dans mon Cap" : "Dans ma réserve"}</span>`}<div class="action-buttons">${primaryButton}${action.status === "weekly" && !action.plannedDate ? `<button class="block-button" data-action="plan-today" data-id="${action.id}">Aujourd’hui</button>` : ""}${action.status === "weekly" ? `<button class="block-button" data-action="blocked" data-id="${action.id}">Je bloque</button>` : ""}<button class="more-button" data-action="edit-action" data-id="${action.id}" aria-label="Modifier l’action">···</button></div></div>`}</article>`;
 }
 
 function renderWeek(state) {
@@ -65,29 +68,60 @@ function renderWeek(state) {
   const remaining = state.actions.filter(a => a.status === "reserve" || a.status === "unassigned");
   const unassigned = remaining.filter(a => a.status === "unassigned");
   const reserve = remaining.filter(a => a.status === "reserve");
-  const todayFocus = actions.filter(a => a.plannedDate === todayISO() && a.status === "weekly");
   const pendingRetros = state.weeks.filter(item => item.id !== week.id && !item.retro).sort((a, b) => b.start.localeCompare(a.start));
-  return `<div class="page-title-row"><div><div class="eyebrow">TON RYTHME, TON CAP</div><h1>Cap Hebdo</h1></div><button class="round-add" data-action="new-action" aria-label="Ajouter une micro-action">+</button></div>
+  const weekNumber = isoWeekNumber(week.start);
+  const days = Array.from({ length: 7 }, (_, index) => dateShift(week.start, index));
+  return `<div class="page-title-row"><div><div class="eyebrow">TON RYTHME, TON CAP</div><h1>🧭 Cap Hebdo <small class="week-number">Semaine ${weekNumber}</small></h1></div><button type="button" class="round-add" data-action="new-action" aria-label="Ajouter une action">+</button></div>
+    <section class="week-objective"><div class="week-objective-icon">🎯 ➜</div><div><div class="eyebrow">OBJECTIF DE LA SEMAINE</div><p>${esc(week.objective || "Quel cap prioritaire veux-tu garder cette semaine ?")}</p></div><button type="button" class="icon-button" data-action="edit-weekly-objective" aria-label="Définir l’objectif de la semaine">✎</button></section>
     <section class="week-progress"><div class="week-dates">Semaine du ${fmt(week.start)} au ${fmt(week.end)}</div><div class="progress-label"><span>${done}/${actions.length} actions accomplies</span><b>${percent}%</b></div><div class="progress-track"><span style="width:${percent}%"></span></div><p>Chaque petit pas compte. Ajuste ton cap selon ta vraie semaine.</p></section>
-    ${pendingRetros.length ? `<section class="section"><div class="eyebrow">À TON RYTHME</div>${pendingRetros.map(item => `<div class="retro-callout"><div class="retro-icon">✦</div><div><b>Le bilan de la semaine du ${fmt(item.start)} attend ton regard.</b><p>Tu peux le faire maintenant ou plus tard.</p></div><button class="button button-soft" data-action="retro" data-week="${item.id}">Ouvrir</button></div>`).join("")}</section>` : ""}
-    <section class="section"><div class="section-heading"><div><div class="eyebrow">FOCUS ACTIF DU JOUR</div><h2>Aujourd’hui</h2></div><span class="count-badge">${todayFocus.length}</span></div>${todayFocus.length ? todayFocus.map(a => actionCard(state, a, true)).join("") : `<div class="empty-card slim"><p>Tu peux garder la journée libre ou choisir un focus dans ton Cap.</p></div>`}</section>
-    <section class="section"><div class="section-heading"><div><div class="eyebrow">MES ENGAGEMENTS</div><h2>Dans mon Cap</h2></div><span class="count-badge">${actions.length}</span></div>${actions.length ? actions.map(a => actionCard(state, a)).join("") : `<div class="empty-card slim"><span class="empty-icon">🧭</span><h3>Ton Cap est encore ouvert.</h3><p>Choisis une action dans une Grande Pierre, ou crée un nouveau petit pas.</p><button class="button button-primary" data-action="new-action">Ajouter une micro-action <span>↗</span></button></div>`}</section>
+    ${pendingRetros.length ? `<section class="section"><div class="eyebrow">À TON RYTHME</div>${pendingRetros.map(item => `<div class="retro-callout"><div class="retro-icon">✦</div><div><b>Le bilan de la semaine du ${fmt(item.start)} attend ton regard.</b><p>Tu peux le faire maintenant ou plus tard.</p></div><button type="button" class="button button-soft" data-action="retro" data-week="${item.id}">Ouvrir</button></div>`).join("")}</section>` : ""}
+    <section class="section"><div class="section-heading"><div><div class="eyebrow">MES ACTIONS À ACCOMPLIR</div><h2>Les actions de mon Cap</h2></div><span class="count-badge">${actions.length}</span></div>${actions.length ? actions.map(a => actionCard(state, a, false, true)).join("") : `<div class="empty-card slim"><span class="empty-icon">🧭</span><h3>Ton Cap est encore ouvert.</h3><p>Choisis une action dans un objectif, ou crée une nouvelle action.</p><button type="button" class="button button-primary" data-action="new-action">Ajouter une action <span>↗</span></button></div>`}</section>
+    ${renderWeekCalendar(state, days)}
     ${unassigned.length ? `<section class="section"><div class="section-heading"><div><div class="eyebrow">INBOX</div><h2>À rattacher</h2></div><span class="count-badge muted">${unassigned.length}</span></div><p class="section-copy">Ces actions attendent leur Grande Pierre avant de rejoindre ton Cap.</p>${unassigned.map(a => actionCard(state, a)).join("")}</section>` : ""}
     <section class="section"><div class="section-heading"><div><div class="eyebrow">PROCHAINES POSSIBILITÉS</div><h2>Ma réserve</h2></div><span class="count-badge muted">${reserve.length}</span></div>${reserve.slice(0, 5).map(a => actionCard(state, a)).join("")}${reserve.length > 5 ? `<button class="text-button center" data-page="stones">Voir les ${reserve.length - 5} autres →</button>` : ""}</section>
-    <div class="stack-buttons"><button class="button button-primary wide" data-action="new-action">＋ Ajouter une micro-action</button><button class="button button-outline wide" data-page="stones">💎 Piocher dans mes Grandes Pierres</button></div>
-    <section class="retro-callout"><div class="retro-icon">✦</div><div><b>Une semaine à célébrer ?</b><p>Prends un instant pour voir tout le chemin parcouru.</p></div><button class="button button-soft" data-action="retro">Faire mon bilan</button></section>`;
+    <div class="stack-buttons"><button type="button" class="button button-primary wide" data-action="new-action">＋ Ajouter une action</button><button type="button" class="button button-outline wide" data-page="cible">🎯 Choisir un objectif</button></div>
+    <section class="retro-callout"><div class="retro-icon">✦</div><div><b>Une semaine à célébrer ?</b><p>Prends un instant pour voir tout le chemin parcouru.</p></div><button type="button" class="button button-soft" data-action="retro">Faire mon bilan</button></section>`;
+}
+
+function renderWeekCalendar(state, days) {
+  const labels = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+  const slotsByDay = [["morning", "🌅 Matin"], ["noon", "☀️ Midi"], ["afternoon", "🌤️ Après-midi"], ["evening", "🌙 Soir"]];
+  return `<section class="section"><div class="section-heading"><div><div class="eyebrow">MON PLANNING HEBDOMADAIRE</div><h2>Mes blocs de temps</h2></div></div><p class="form-hint">Glisse une action vers un créneau. Sur téléphone, appuie sur ⠿ pour choisir le jour et le moment.</p><div class="week-calendar-viewport"><div class="week-calendar-track">${days.map((date, index) => `<article class="week-day-column"><h3>${labels[index]} <small>${date.slice(-2)}</small></h3>${slotsByDay.map(([slot, label]) => { const items = state.actions.filter(action => action.plannedDate === date && action.slot === slot && action.status !== "abandoned" && action.status !== "split"); return `<section class="week-time-slot" data-week-slot="true" data-date="${date}" data-slot="${slot}" tabindex="0" aria-label="${labels[index]}, ${label.replace(/[🌅☀️🌤️🌙]/gu, "")}"><b>${label}</b>${items.map(action => `<label class="week-slot-action ${action.status === "done" ? "is-done" : ""}"><input type="checkbox" data-action="complete-week-action" data-id="${esc(action.id)}" ${action.status === "done" ? "checked disabled" : ""} aria-label="Marquer ${esc(action.title)} comme faite"><span>${esc(action.title)}</span></label>`).join("") || `<small class="slot-empty">Déposer ici</small>`}</section>`; }).join("")}</article>`).join("")}</div></div></section>`;
+}
+
+function isoWeekNumber(dateText) {
+  const date = new Date(`${dateText}T12:00:00`);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  const firstThursday = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
 }
 
 function renderStones(state) {
-  return `<div class="page-title-row"><div><div class="eyebrow">MES FONDATIONS</div><h1>Grandes Pierres</h1><p class="page-subtitle">Les projets qui donnent du sens à tes pas.</p></div><button class="round-add" data-action="new-stone" aria-label="Créer une Grande Pierre">+</button></div>
-    ${state.stones.length ? `<div class="stone-grid">${state.stones.map(stone => stoneCard(state, stone)).join("")}</div>` : `<div class="empty-card"><span class="empty-icon">💎</span><h3>Qu’est-ce qui compte vraiment pour toi ?</h3><p>Crée une Grande Pierre, puis découpe-la en petits pas concrets.</p><button class="button button-primary" data-action="new-stone">Créer ma première Grande Pierre <span>↗</span></button></div>`}
-    <div class="soft-note"><span>🌱</span><p>Tu peux aussi créer une pierre <b>Gestion, admin & obligations</b> pour les tâches nécessaires à ton quotidien. <button class="text-button" data-action="new-admin-stone">La créer maintenant →</button></p></div>`;
+  const hasAdminGoal = state.stones.some(stone => /gestion.*admin.*obligation/i.test(stone.title.replace(/[,&]/g, " ")));
+  return `${state.stones.length ? `<div class="stone-grid">${state.stones.map(stone => stoneCard(state, stone)).join("")}</div>` : `<div class="empty-card"><span class="empty-icon">🎯</span><h3>Qu’est-ce qui compte vraiment pour toi ?</h3><p>Crée un objectif, puis découpe-le en actions concrètes.</p><button type="button" class="button button-primary" data-action="new-stone">Créer mon premier objectif <span>↗</span></button></div>`}
+    ${!hasAdminGoal ? `<div class="soft-note"><span>🌱</span><p>Tu peux aussi créer un objectif <b>Gestion, admin & obligations</b> pour les tâches nécessaires à ton quotidien. <button type="button" class="text-button" data-action="new-admin-stone">Le créer maintenant →</button></p></div>` : ""}`;
+}
+
+function renderCiblePage(state) {
+  const habits = activeHabits(state);
+  const vision = state.profile.vision || "Ta vision commence par une phrase.";
+  return `<div class="page-title-row"><div><div class="eyebrow">TES REPÈRES ET TES PAS</div><h1>Mes objectifs et habitudes</h1></div></div>
+    <section class="vision-strip"><div class="vision-orb">✦</div><div><div class="eyebrow">MA VISION</div><p>« ${esc(vision)} »</p></div><button type="button" class="icon-button" data-page="vision" aria-label="Ouvrir ma vision">✎</button></section>
+    <section class="section"><div class="section-heading"><div><div class="eyebrow">MES RITUELS</div><h2>Mes habitudes</h2></div><button type="button" class="text-button" data-action="new-habit">＋ Ajouter une habitude</button></div>
+    ${habits.length ? `<div class="cible-habits">${habits.map(habit => {
+      const streak = habitStreak(state, habit.id);
+      const linked = Boolean(habit.linkedStoneId || habit.linkedVision);
+      const streakText = streak === 1 ? "Premier jour" : streak === 2 ? "Deuxième jour" : streak >= 3 ? `Série de ${streak} jours` : "À commencer quand tu veux";
+      return `<article class="cible-habit-row"><button type="button" class="habit-check ${isHabitDone(state, habit.id) ? "checked" : ""}" data-action="toggle-habit" data-id="${esc(habit.id)}" aria-label="${isHabitDone(state, habit.id) ? "Décocher" : "Valider"} ${esc(habit.title)}">${isHabitDone(state, habit.id) ? "✓" : ""}</button><button type="button" class="cible-habit-copy" data-action="edit-habit" data-id="${esc(habit.id)}"><b>${esc(habit.emoji || "🌱")} ${esc(habit.title)} ${linked ? `<span class="linked-star" aria-label="Reliée à un objectif ou à la Vision">✨</span>` : ""}</b><small>${esc(streakText)}</small></button><button type="button" class="more-button" data-action="edit-habit" data-id="${esc(habit.id)}" aria-label="Modifier ${esc(habit.title)}">✎</button></article>`;
+    }).join("")}</div>` : `<div class="empty-card slim"><p>Ajoute les habitudes qui te soutiennent, sans chercher à tout changer d’un coup.</p><button type="button" class="button button-primary" data-action="new-habit">＋ Ajouter une habitude</button></div>`}
+    <button type="button" class="text-button" data-page="habits">Voir le calendrier des habitudes →</button></section>
+    <section class="section"><div class="section-heading"><div><div class="eyebrow">LES PROJETS QUI COMPTENT</div><h2>Mes objectifs</h2></div><button type="button" class="round-add" data-action="new-stone" aria-label="Créer un objectif">+</button></div>${renderStones(state)}</section>`;
 }
 
 function stoneCard(state, stone) {
   const progress = stoneProgress(state, stone.id);
   const reserve = state.actions.filter(a => a.stoneId === stone.id && a.status !== "done" && a.status !== "abandoned" && a.status !== "split").length;
-  return `<article class="stone-card"><button class="stone-card-main" data-action="stone-detail" data-id="${stone.id}"><div class="stone-card-icon">${esc(stone.icon || "💎")}</div><div class="stone-card-content"><h2>${esc(stone.title)}</h2><p>${progress.done} accomplies · ${reserve} à venir</p></div><div class="stone-percent">${progress.percent}%</div></button><div class="progress-track small"><span style="width:${progress.percent}%"></span></div><div class="stone-card-bottom"><span>${progress.total} micro-action${progress.total > 1 ? "s" : ""}</span><button class="text-button" data-action="new-action" data-stone="${stone.id}">＋ Ajouter un pas</button></div></article>`;
+  return `<article class="stone-card"><button type="button" class="stone-card-main" data-action="stone-detail" data-id="${stone.id}"><div class="stone-card-icon">${esc(stone.icon || "🎯")}</div><div class="stone-card-content"><h2>${esc(stone.title)}</h2><p>${progress.done} actions accomplies · ${reserve} à venir</p></div><div class="stone-percent">${progress.percent}%</div></button><div class="progress-track small"><span style="width:${progress.percent}%"></span></div><div class="stone-card-bottom"><span>${progress.total} action${progress.total > 1 ? "s" : ""}</span><button type="button" class="text-button" data-action="new-action" data-stone="${stone.id}">＋ Ajouter une action</button></div></article>`;
 }
 
 function renderVision(state) {
@@ -96,8 +130,56 @@ function renderVision(state) {
     <section class="vision-quote-card"><span class="quote-mark">“</span><p>${esc(profile.vision || "Ta phrase courte de vision apparaîtra ici.")}</p><small>MA VISION, EN QUELQUES MOTS</small></section>
     <section class="section"><div class="section-heading"><div><div class="eyebrow">MES ESSENTIELS</div><h2>Ce qui guide mes choix</h2></div><button class="text-button" data-action="edit-essentials">Modifier</button></div>${profile.essentials.length ? `<div class="essential-list">${profile.essentials.map((item, i) => `<div class="essential-item"><span class="essential-number">0${i + 1}</span><span>${esc(item)}</span><span class="essential-spark">✦</span></div>`).join("")}</div>` : `<div class="empty-card slim"><p>Ajoute tes essentiels pour les retrouver dans l’outil « Éclairer un choix ».</p><button class="button button-soft" data-action="edit-essentials">＋ Ajouter mes essentiels</button></div>`}</section>
     <section class="section"><div class="section-heading"><div><div class="eyebrow">MON RÉCIT</div><h2>La vie que je veux bâtir</h2></div><button class="icon-button" data-action="edit-story" aria-label="Modifier mon récit">✎</button></div><div class="story-card">${profile.story ? `<p>${esc(profile.story).replace(/\n/g, "<br>")}</p>` : `<p class="muted-copy">Quelques lignes pour imaginer les journées vers lesquelles tu avances. Tu pourras compléter ce récit quand tu le souhaites.</p>`}<button class="text-button" data-action="edit-story">${profile.story ? "Enrichir mon récit" : "Commencer mon récit"} →</button></div></section>
-    <section class="section"><div class="section-heading"><div><div class="eyebrow">MES MOTS-REPÈRES</div><h2>Ce qui résonne</h2></div><button class="text-button" data-action="edit-resonance">Modifier</button></div><div class="word-cloud">${profile.resonance.length ? profile.resonance.map((word, i) => `<span class="word-chip word-${i % 4}">${esc(word)}</span>`).join("") : `<button class="button button-outline" data-action="edit-resonance">＋ Ajouter des mots</button>`}</div></section>
-    <section class="section"><div class="section-heading"><div><div class="eyebrow">MES FIGURES GUIDES</div><h2>Les énergies qui m’inspirent</h2></div><button class="text-button" data-action="edit-guides">＋ Ajouter</button></div><div class="guide-grid">${profile.guides.length ? profile.guides.map(g => `<article class="guide-card"><div class="guide-avatar">${esc(g.emoji || "✨")}</div><b>${esc(g.name)}</b><span>${esc(g.qualities || "")}</span></article>`).join("") : `<div class="guide-empty">Des personnes, personnages ou qualités qui t’aident à garder le cap.</div>`}</div></section>`;
+    <section class="section"><div class="section-heading"><div><div class="eyebrow">MES REPÈRES</div><h2>Ce qui résonne</h2></div><button type="button" class="text-button" data-action="edit-resonance">Modifier</button></div><div class="word-cloud">${profile.resonance.length ? profile.resonance.map((word, i) => `<span class="word-chip word-${i % 4}">${esc(word)}</span>`).join("") : `<span class="muted-copy">Les mots qui te ressemblent ou t’aident à avancer.</span>`}</div><div class="vision-media-actions"><button type="button" class="button button-outline" data-action="edit-resonance">＋ Ajouter des mots</button><label class="button button-outline">＋ Ajouter des images<input id="resonance-image-input" type="file" accept="image/*" multiple hidden></label></div>${profile.resonanceImages?.length ? `<div class="vision-image-grid">${profile.resonanceImages.map(image => `<figure><img src="${image.dataUrl}" alt="${esc(image.name || "Image liée à ma Vision")}" loading="lazy"><button type="button" class="remove-win" data-action="remove-resonance-image" data-id="${esc(image.id)}" aria-label="Retirer cette image">×</button></figure>`).join("")}</div>` : ""}</section>`;
+}
+
+function renderVictoryItem(state, value, index = null, date = "") {
+  const win = typeof value === "string" ? { text: value } : (value || {});
+  const linked = win.relatedType === "stone"
+    ? state.stones.find(stone => stone.id === win.relatedId)
+    : win.relatedType === "action" ? state.actions.find(action => action.id === win.relatedId) : null;
+  const label = linked ? `${win.relatedType === "stone" ? "🎯" : "↳"} ${linked.title}` : "";
+  const formattedDate = date ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${date}T12:00:00`)) : "";
+  return `<div class="win-item"><span>✦</span><span class="win-copy">${esc(win.text || "")}${label ? `<small class="victory-related">${esc(label)}</small>` : ""}${formattedDate ? `<small>${esc(formattedDate)}</small>` : ""}</span>${index !== null ? `<button type="button" class="remove-win" data-remove-win="${index}" aria-label="Supprimer cette victoire">×</button>` : ""}</div>`;
+}
+
+let selectedHistoryDate = todayISO();
+
+export function shiftHistoryDate(days) {
+  selectedHistoryDate = dateShift(selectedHistoryDate, days);
+  if (selectedHistoryDate > todayISO()) selectedHistoryDate = todayISO();
+}
+
+export function selectHistoryDate(date) {
+  if (date <= todayISO()) selectedHistoryDate = date;
+}
+
+function renderHistoryPage(state) {
+  const date = selectedHistoryDate;
+  const start = mondayISO(new Date(`${date}T12:00:00`));
+  const end = weekEndISO(start);
+  const dates = Array.from({ length: 7 }, (_, index) => dateShift(start, index));
+  const day = state.daily[date] || {};
+  const actions = state.actions.filter(action => action.plannedDate === date || action.completedAt?.slice(0, 10) === date);
+  const habits = state.habits.filter(habit => {
+    const created = habit.createdAtDate || habit.createdAt?.slice(0, 10) || "0000-00-00";
+    return created <= date && (!habit.archivedAt || date <= habit.archivedAt);
+  });
+  const wins = day.wins || [];
+  const weekActions = state.actions.filter(action => (action.plannedDate >= start && action.plannedDate <= end) || (action.completedAt?.slice(0, 10) >= start && action.completedAt?.slice(0, 10) <= end));
+  const selectedLabel = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date(`${date}T12:00:00`));
+  const weekLabel = `${new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(new Date(`${start}T12:00:00`))} – ${new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(new Date(`${end}T12:00:00`))}`;
+  return `<div class="page-title-row"><div><div class="eyebrow">TES TRACES</div><h1>Historique</h1><p class="page-subtitle">Retrouve ce que tu as vécu et accompli.</p></div></div>
+    <section class="history-week-card"><div class="history-week-heading"><button type="button" class="icon-button" data-action="history-shift" data-days="-7" aria-label="Semaine précédente">‹</button><b>Semaine du ${esc(weekLabel)}</b><button type="button" class="icon-button" data-action="history-shift" data-days="7" aria-label="Semaine suivante" ${end >= todayISO() ? "disabled" : ""}>›</button></div><div class="history-week-days">${dates.map(dayDate => { const label = new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(new Date(`${dayDate}T12:00:00`)); const number = Number(dayDate.slice(-2)); return `<button type="button" data-action="history-date" data-date="${dayDate}" class="history-date ${dayDate === date ? "selected" : ""}" ${dayDate > todayISO() ? "disabled" : ""}><small>${esc(label)}</small><b>${number}</b></button>`; }).join("")}</div><div class="history-week-summary">${weekActions.filter(action => action.status === "done").length} action(s) terminée(s) · ${weekActions.length} planifiée(s) ou réalisée(s)</div></section>
+    <div class="history-day-heading"><button type="button" class="icon-button" data-action="history-shift" data-days="-1" aria-label="Jour précédent">‹</button><h2>${esc(selectedLabel)}</h2><button type="button" class="icon-button" data-action="history-shift" data-days="1" aria-label="Jour suivant" ${date >= todayISO() ? "disabled" : ""}>›</button></div>
+    <section class="section history-grid"><article class="history-card"><h3>Mon point du jour</h3><p>⚡ Batterie : ${day.energy ? `${day.energy} %` : "non renseignée"}</p><p>🙂 Humeur : ${day.mood ? esc(day.mood) : "non renseignée"}</p></article><article class="history-card"><h3>Mes habitudes</h3>${habits.length ? habits.map(habit => `<p>${isHabitDone(state, habit.id, date) ? "🟢" : "⚪"} ${esc(habit.title)}</p>`).join("") : `<p>Aucune habitude pour cette date.</p>`}</article></section>
+    <section class="section"><div class="section-heading"><h2>Mes actions</h2><span class="count-badge">${actions.length}</span></div>${actions.length ? actions.map(action => `<article class="history-action ${action.status === "done" ? "is-done" : ""}"><b>${action.status === "done" ? "✓" : "○"} ${esc(action.title)}</b><small>${esc(state.stones.find(stone => stone.id === action.stoneId)?.title || "Sans objectif")} · ${action.status === "done" ? "Terminée" : "Prévue"}</small></article>`).join("") : `<div class="empty-card slim"><p>Aucune action prévue ou terminée ce jour-là.</p></div>`}</section>
+    <section class="section"><div class="section-heading"><h2>Mes victoires</h2><button type="button" class="text-button" data-page="wins">Tout voir →</button></div>${wins.length ? wins.map(win => renderVictoryItem(state, win)).join("") : `<p class="muted-copy">Aucune victoire notée ce jour-là.</p>`}</section>`;
+}
+
+function renderWinsPage(state) {
+  const allWins = Object.entries(state.daily).flatMap(([date, day]) => (day.wins || []).map(win => ({ date, win }))).sort((a, b) => b.date.localeCompare(a.date));
+  return `<div class="page-title-row"><div><div class="eyebrow">LIVRE D’OR</div><h1>Mes victoires</h1><p class="page-subtitle">Tous ces petits pas méritent d’être gardés.</p></div><span class="count-badge">${allWins.length}</span></div>${allWins.length ? allWins.map(item => renderVictoryItem(state, item.win, null, item.date)).join("") : `<div class="empty-card"><span class="empty-icon">🏆</span><h3>Ton livre d’or commence ici</h3><p>Une fierté, un choix ou un moment important peut devenir une victoire à garder.</p><button type="button" class="button button-primary" data-page="home">Ajouter ma première victoire</button></div>`}<button type="button" class="button button-outline wide" data-page="home">← Retour à l’accueil</button>`;
 }
 
 function renderTools(state) {
@@ -117,7 +199,25 @@ function renderProfile(state) {
 }
 
 export function modal(title, body, footer = "") {
-  return `<div class="modal-backdrop" data-action="close-modal"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><button class="text-button" data-action="close-modal">Annuler</button><h2 id="modal-title">${esc(title)}</h2><span></span></div><div class="modal-body">${body}</div>${footer ? `<div class="modal-foot">${footer}</div>` : ""}</section></div>`;
+  return `<div class="modal-backdrop"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><button type="button" class="text-button" data-action="close-modal">Annuler</button><h2 id="modal-title">${esc(title)}</h2><span></span></div><div class="modal-body">${body}</div>${footer ? `<div class="modal-foot">${footer}</div>` : ""}</section></div>`;
+}
+
+export function weeklyObjectiveForm(state) {
+  const week = getCurrentWeek(state);
+  const body = `<form id="weekly-objective-form"><label>Mon objectif prioritaire cette semaine<textarea name="objective" rows="3" maxlength="180" placeholder="Ex. Montrer une première version de l’appli">${esc(week.objective || "")}</textarea></label><p class="form-hint">Un cap simple t’aide à choisir les actions qui comptent cette semaine.</p></form>`;
+  return modal("Mon objectif de la semaine", body, `<button type="submit" class="button button-primary wide" form="weekly-objective-form">Enregistrer mon cap</button>`);
+}
+
+export function scheduleActionForm(state, action) {
+  const week = getCurrentWeek(state);
+  const days = Array.from({ length: 7 }, (_, index) => dateShift(week.start, index));
+  const dayOptions = days.map(date => {
+    const label = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00`));
+    return `<option value="${date}" ${action.plannedDate === date ? "selected" : ""}>${esc(label)}</option>`;
+  }).join("");
+  const slotOptions = slots.map(([id, icon, label]) => `<option value="${id}" ${action.slot === id ? "selected" : ""}>${icon} ${label}</option>`).join("");
+  const body = `<form id="schedule-action-form"><input type="hidden" name="id" value="${esc(action.id)}"><p class="form-hint">${esc(action.title)}</p><label>Jour<select name="date" required><option value="" disabled ${action.plannedDate ? "" : "selected"}>Choisir un jour</option>${dayOptions}</select></label><label>Moment<select name="slot" required><option value="" disabled ${action.slot ? "" : "selected"}>Choisir un moment</option>${slotOptions}</select></label><p class="form-hint">Tu peux aussi glisser l’action vers un créneau du planning.</p></form>`;
+  return modal("Choisir un créneau", body, `<button type="submit" class="button button-primary wide" form="schedule-action-form">Placer l’action</button>`);
 }
 
 export function actionForm(state, action = null, preselectedStone = "") {
@@ -157,8 +257,8 @@ export function retroForm(state, weekId = "") {
   const wins = Object.entries(state.daily).filter(([date, d]) => date >= week.start && date <= week.end).flatMap(([, d]) => d.wins || []);
   const completed = state.actions.filter(a => a.weekId === week.id && a.status === "done").length;
   const prompt = completed ? "Qu’est-ce qui t’a aidé à avancer cette semaine ?" : "Même une semaine sans action terminée peut t’apprendre quelque chose. Qu’est-ce qui t’aurait aidé ?";
-  const body = `<form id="retro-form"><input type="hidden" name="weekId" value="${week.id}"><div class="retro-celebrate"><span>🎉</span><h3>${completed ? "Regarde le chemin parcouru." : "Merci d’avoir pris ce temps."}</h3><p>${completed} micro-action(s) terminée(s) · ${state.xp.total} XP cumulés</p></div>${wins.length ? `<div class="retro-wins"><b>Déjà noté dans ton livre d’or</b>${wins.slice(0, 4).map(win => `<p>✦ ${esc(win)}</p>`).join("")}</div>` : ""}<label>Une victoire oubliée ?<textarea name="win" rows="2" placeholder="Un moment, une avancée, un choix…"></textarea></label><label>${prompt}<textarea name="mirror" rows="3" placeholder="Quelques mots, sans chercher la bonne réponse.">${esc(week.retro?.mirror || "")}</textarea></label>${actions.length ? `<div class="retro-remaining"><b>Que souhaites-tu faire des actions restantes ?</b>${actions.map(a => `<div class="remaining-row"><span>${esc(a.title)}</span><select name="remaining-${a.id}"><option value="reserve">Reporter dans ma réserve</option><option value="split">Découper en actions plus petites</option><option value="drop">Abandonner</option></select><select name="reason-${a.id}" aria-label="Raison du report"><option value="">Raison (facultatif)</option><option value="blocked">J’ai été bloqué·e</option><option value="too-big">Action trop grande</option><option value="less-important">Moins prioritaire</option><option value="unexpected">Imprévu</option></select></div>`).join("")}</div>` : `<p class="form-hint">Aucune action ne reste en suspens. Savoure cette avancée.</p>`}</form>`;
-  return modal("Rétrospective du Cap Hebdo", body, `<button class="button button-primary wide" form="retro-form">Clôturer ma semaine ✨</button>`);
+  const body = `<form id="retro-form"><input type="hidden" name="weekId" value="${week.id}"><div class="retro-celebrate"><span>🎉</span><h3>${completed ? "Regarde le chemin parcouru." : "Merci d’avoir pris ce temps."}</h3><p>${completed} micro-action(s) terminée(s) · ${state.xp.total} XP cumulés</p></div>${wins.length ? `<div class="retro-wins"><b>Déjà noté dans ton livre d’or</b>${wins.slice(0, 4).map(win => `<p>✦ ${esc(typeof win === "string" ? win : win?.text || "")}</p>`).join("")}</div>` : ""}<label>Une victoire oubliée ?<textarea name="win" rows="2" placeholder="Un moment, une avancée, un choix…"></textarea></label><label>${prompt}<textarea name="mirror" rows="3" placeholder="Quelques mots, sans chercher la bonne réponse.">${esc(week.retro?.mirror || "")}</textarea></label>${actions.length ? `<div class="retro-remaining"><b>Que souhaites-tu faire des actions restantes ?</b>${actions.map(a => `<div class="remaining-row"><span>${esc(a.title)}</span><select name="remaining-${a.id}"><option value="reserve">Reporter dans ma réserve</option><option value="split">Découper en actions plus petites</option><option value="drop">Abandonner</option></select><select name="reason-${a.id}" aria-label="Raison du report"><option value="">Raison (facultatif)</option><option value="blocked">J’ai été bloqué·e</option><option value="too-big">Action trop grande</option><option value="less-important">Moins prioritaire</option><option value="unexpected">Imprévu</option></select></div>`).join("")}</div>` : `<p class="form-hint">Aucune action ne reste en suspens. Savoure cette avancée.</p>`}</form>`;
+  return modal("Rétrospective du Cap Hebdo", body, `<button type="submit" class="button button-primary wide" form="retro-form">Clôturer ma semaine ✨</button>`);
 }
 
 export function blockerForm(action) {

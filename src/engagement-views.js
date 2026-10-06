@@ -1,6 +1,6 @@
 import { badgesFor, themeRewards, levelFor } from "./gamification.js";
-import { activeHabits, habitDaySummary, habitStreak, isHabitDone, monthGrid, isoFromMonthDay, challengeProgress } from "./engagement.js";
-import { todayISO } from "./data.js";
+import { activeHabits, dateShift, habitDaySummary, habitStreak, isHabitDone, monthGrid, isoFromMonthDay, challengeProgress } from "./engagement.js";
+import { mondayISO, todayISO } from "./data.js";
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 const categories = { serenity: ["🌿", "Sérénité"], focus: ["🎯", "Focus"], inspiration: ["💖", "Inspiration"], boost: ["🔋", "Coup de boost"] };
@@ -60,18 +60,20 @@ export function renderHabitsPage(state) {
       <div class="habit-day-detail"><b>Détail du ${esc(detailDate)}</b><span>Habitudes : ${currentHabit ? (isHabitDone(state, currentHabit.id, selectedHabitDate) ? "1/1" : "0/1") : `${selectedSummary.done}/${selectedSummary.total}`} (${currentHabit ? (isHabitDone(state, currentHabit.id, selectedHabitDate) ? "100" : "0") : selectedSummary.percent} %)</span>${selectedHabits.map(habit => `<small>${isHabitDone(state, habit.id, selectedHabitDate) ? "✓" : "○"} ${esc(habit.title)}</small>`).join("") || `<small>Aucune habitude active à cette date.</small>`}<span>Gain de base : +${basePoints} XP</span>${grandSlam ? `<span>Bonus Grand Chelem : +${grandSlam.amount} XP</span>` : ""}</div>
       ${currentHabit ? `<div class="habit-streak-card"><div><span>🔥</span><b>${streak} jour${streak > 1 ? "s" : ""} de suite</b></div><p>${filteredLogs} jours cochés dans l’historique · ${totalPoints} XP gagnés avec tes habitudes</p><small>Le multiplicateur x2 s’active à partir de 7 jours consécutifs.</small></div>` : `<p class="form-hint">Choisis une habitude pour voir sa série et son historique individuel.</p>`}
     </section>
-    <button class="button button-outline wide" data-page="tools">← Retour à la Boîte à outils</button>`;
+    <button class="button button-outline wide" data-page="cible">← Retour à mes objectifs et habitudes</button>`;
 }
 
 export function renderHabitHome(state) {
   const habits = activeHabits(state);
-  if (!habits.length) return `<section class="section habit-home-card"><div class="section-heading"><div><div class="eyebrow">UN PETIT RITUEL ?</div><h2>Mes habitudes</h2></div><button class="text-button" data-page="habits">Configurer →</button></div><div class="empty-card slim"><p>Choisis une habitude pour célébrer les gestes qui te font du bien.</p><button class="button button-soft" data-action="new-habit">＋ Ajouter une habitude</button></div></section>`;
-  const summary = habitDaySummary(state, todayISO());
-  return `<section class="section habit-home-card"><div class="section-heading"><div><div class="eyebrow">MES HABITUDES</div><h2>Aujourd’hui · ${summary.done}/${summary.total}</h2></div><button class="text-button" data-page="habits">Calendrier →</button></div>${habits.slice(0, 4).map(habit => `<button class="habit-home-row" data-action="toggle-habit" data-id="${habit.id}"><span class="habit-check ${isHabitDone(state, habit.id) ? "checked" : ""}">${isHabitDone(state, habit.id) ? "✓" : ""}</span><span>${esc(habit.emoji || "🌱")} ${esc(habit.title)}</span><small>${isHabitDone(state, habit.id) ? "Fait" : "+1 XP"}</small></button>`).join("")}</section>`;
+  if (!habits.length) return `<section class="section habit-home-card"><div class="section-heading"><div><div class="eyebrow">MES HABITUDES</div><h2>Un rituel à la fois</h2></div><button type="button" class="text-button" data-page="cible">Configurer →</button></div><div class="empty-card slim"><p>Choisis une habitude pour célébrer les gestes qui te font du bien.</p><button type="button" class="button button-soft" data-action="new-habit">＋ Ajouter une habitude</button></div></section>`;
+  const start = mondayISO(new Date());
+  const weekdays = ["L", "M", "M", "J", "V", "S", "D"];
+  return `<section class="section habit-home-card"><div class="section-heading"><div><div class="eyebrow">MES HABITUDES</div><h2>Cette semaine</h2></div><button type="button" class="text-button" data-page="cible">Voir mes habitudes →</button></div><div class="habit-carousel">${habits.map(habit => `<article class="habit-week-card"><div class="habit-week-title"><button type="button" class="habit-week-check ${isHabitDone(state, habit.id) ? "checked" : ""}" data-action="toggle-habit" data-id="${esc(habit.id)}" aria-label="${isHabitDone(state, habit.id) ? "Décocher" : "Valider"} ${esc(habit.title)}">${isHabitDone(state, habit.id) ? "✓" : ""}</button><button type="button" class="habit-week-name" data-action="edit-habit" data-id="${esc(habit.id)}">${esc(habit.emoji || "🌱")} ${esc(habit.title)}</button></div><div class="habit-week-dots">${weekdays.map((label, index) => { const date = dateShift(start, index); return `<span class="habit-week-day"><i class="${isHabitDone(state, habit.id, date) ? "done" : ""}" title="${date}"></i><small>${label}</small></span>`; }).join("")}</div></article>`).join("")}</div></section>`;
 }
 
-export function habitForm(habit = null) {
-  return `<form id="habit-form"><label>Nom de l’habitude<input name="title" required maxlength="70" placeholder="Ex. Boire 1,5 L d’eau" value="${esc(habit?.title || "")}"></label><label>Repère ou intention <small>(facultatif)</small><input name="description" maxlength="100" placeholder="Ex. Garder ma gourde près de moi" value="${esc(habit?.description || "")}"></label><label>Symbole<input name="emoji" maxlength="4" value="${esc(habit?.emoji || "🌱")}"></label><input type="hidden" name="id" value="${esc(habit?.id || "")}"></form>`;
+export function habitForm(habit = null, state = null) {
+  const objectives = (state?.stones || []).map(stone => `<option value="${esc(stone.id)}" ${habit?.linkedStoneId === stone.id ? "selected" : ""}>🎯 ${esc(stone.title)}</option>`).join("");
+  return `<form id="habit-form"><label>Nom de l’habitude<input name="title" required maxlength="70" placeholder="Ex. Boire 1,5 L d’eau" value="${esc(habit?.title || "")}"></label><label>Repère ou intention <small>(facultatif)</small><input name="description" maxlength="100" placeholder="Ex. Garder ma gourde près de moi" value="${esc(habit?.description || "")}"></label><label>Symbole<input name="emoji" maxlength="4" value="${esc(habit?.emoji || "🌱")}"></label><label class="form-check-line"><input type="checkbox" name="linkedVision" ${habit?.linkedVision ? "checked" : ""}> Cette habitude est liée à ma Vision ✨</label>${objectives ? `<label>Objectif associé <small>(facultatif)</small><select name="linkedStoneId"><option value="">Aucun</option>${objectives}</select></label>` : ""}<input type="hidden" name="id" value="${esc(habit?.id || "")}"></form>`;
 }
 
 export function renderChallengesPage(state) {

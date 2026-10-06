@@ -1,8 +1,9 @@
 import { addXP, badgesFor, levelFor, milestoneFor, pointsForAction, themeRewards } from "./gamification.js";
 import { createInitialState, exportObject, getCurrentWeek, loadState, newId, saveState, stoneProgress, todayISO, validateImport } from "./data.js";
-import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, retroForm, stoneForm, visionForm } from "./views.js";
+import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, retroForm, scheduleActionForm, selectHistoryDate, shiftHistoryDate, stoneForm, visionForm, weeklyObjectiveForm } from "./views.js";
 import { changeHabitMonth, selectHabitDate, selectHabitFilter, habitForm, challengeForm, capsuleForm } from "./engagement-views.js";
 import { createChallenge, expireChallenges, markCapsuleWatched, markChallengeDay, stopChallenge, toggleHabit } from "./engagement.js";
+import { canPlaceInTimeSlot } from "./planning.js";
 
 let state = await loadState();
 if (expireChallenges(state)) await saveState(state);
@@ -12,6 +13,9 @@ let pendingImport = null;
 let soundCtx = null;
 let installPrompt = null;
 let resumeDecisionAfterEssentials = false;
+let schedulePointerDrag = null;
+let suppressScheduleClick = "";
+let schedulePointerListenersBound = false;
 let pendingDecisionProposal = "";
 
 const app = document.querySelector("#app");
@@ -103,8 +107,10 @@ function bindPageInteractions() {
     await persist(); render();
   }));
   document.querySelector("#win-form")?.addEventListener("submit", async event => {
-    event.preventDefault(); const input = new FormData(event.currentTarget).get("win")?.toString().trim();
-    if (!input) return; const today = todayISO(); state.daily[today] ||= {}; state.daily[today].wins ||= []; state.daily[today].wins.unshift(input);
+    event.preventDefault(); const fd = new FormData(event.currentTarget); const input = fd.get("win")?.toString().trim();
+    if (!input) return;
+    const [relatedType, relatedId] = String(fd.get("related") || "").split(":");
+    const today = todayISO(); state.daily[today] ||= {}; state.daily[today].wins ||= []; state.daily[today].wins.unshift({ text: input, relatedType: relatedId ? relatedType : "", relatedId: relatedId || "" });
     if (addXP(state, 5, "victory", newId("win"))) celebrate("+5 XP · une victoire de plus dans ton livre d’or !");
     await persist(); render();
   });
@@ -139,12 +145,60 @@ function bindPageInteractions() {
     if (!theme || levelFor(state.xp.total).level < theme.level) return;
     state.preferences.theme = theme.id; await persist(); render(); celebrate(`Ambiance ${theme.name} activée !`);
   }));
-  document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, button.dataset)));
+  document.querySelector("#resonance-image-input")?.addEventListener("change", addResonanceImages);
+  document.querySelector("#weekly-objective-form")?.addEventListener("submit", saveWeeklyObjective);
+  bindScheduleDragInteractions();
+  document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => {
+    if (button.dataset.action === "schedule-action" && suppressScheduleClick === button.dataset.id) { suppressScheduleClick = ""; return; }
+    handleAction(button.dataset.action, button.dataset);
+  }));
+}
+
+function bindScheduleDragInteractions() {
+  document.querySelectorAll("[data-drag-action]").forEach(handle => handle.addEventListener("pointerdown", event => {
+    if (event.button !== undefined && event.button !== 0) return;
+    schedulePointerDrag = { id: handle.dataset.dragAction, pointerId: event.pointerId, x: event.clientX, y: event.clientY, active: false };
+  }));
+  if (schedulePointerListenersBound) return;
+  schedulePointerListenersBound = true;
+  document.addEventListener("pointermove", event => {
+    const drag = schedulePointerDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.active && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 9) return;
+    drag.active = true;
+    event.preventDefault();
+    document.body.classList.add("schedule-dragging");
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-week-slot]");
+    document.querySelectorAll("[data-week-slot]").forEach(slot => {
+      const action = state.actions.find(item => item.id === drag.id);
+      const canPlace = action && canPlaceInTimeSlot(state.actions, { ...action, plannedDate: slot.dataset.date, slot: slot.dataset.slot });
+      slot.classList.toggle("is-drop-target", slot === target && Boolean(canPlace));
+      slot.classList.toggle("is-drop-blocked", slot === target && !canPlace);
+    });
+  }, { passive: false });
+  const finishDrag = async event => {
+    const drag = schedulePointerDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    schedulePointerDrag = null;
+    document.body.classList.remove("schedule-dragging");
+    document.querySelectorAll("[data-week-slot]").forEach(slot => slot.classList.remove("is-drop-target", "is-drop-blocked"));
+    if (!drag.active) return;
+    event.preventDefault();
+    suppressScheduleClick = drag.id;
+    setTimeout(() => { if (suppressScheduleClick === drag.id) suppressScheduleClick = ""; }, 700);
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-week-slot]");
+    if (target) await scheduleActionInSlot(drag.id, target.dataset.date, target.dataset.slot);
+  };
+  document.addEventListener("pointerup", finishDrag);
+  document.addEventListener("pointercancel", finishDrag);
 }
 
 function bindModalInteractions() {
-  modalRoot.querySelectorAll('[data-action]:not(.modal-backdrop)').forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, button.dataset)));
-  modalRoot.querySelector(".modal-backdrop")?.addEventListener("click", event => { if (event.target === event.currentTarget) closeModal(); });
+  modalRoot.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, button.dataset)));
+  const backdrop = modalRoot.querySelector(".modal-backdrop");
+  const card = modalRoot.querySelector(".modal-card");
+  backdrop?.addEventListener("click", event => { if (event.target === backdrop) closeModal(); });
+  card?.addEventListener("click", event => event.stopPropagation());
   modalRoot.querySelector("#action-form")?.addEventListener("change", event => {
     if (event.target.name === "effort") modalRoot.querySelector("#xxl-note").hidden = event.target.value !== "XXL";
   });
@@ -157,6 +211,8 @@ function bindModalInteractions() {
   modalRoot.querySelector("#guides-form")?.addEventListener("submit", saveGuidesForm);
   modalRoot.querySelector("#decision-form")?.addEventListener("submit", showDecisionResult);
   modalRoot.querySelector("#retro-form")?.addEventListener("submit", saveRetro);
+  modalRoot.querySelector("#weekly-objective-form")?.addEventListener("submit", saveWeeklyObjective);
+  modalRoot.querySelector("#schedule-action-form")?.addEventListener("submit", saveScheduleAction);
   modalRoot.querySelector("#blocker-form")?.addEventListener("submit", saveBlockerChoice);
   modalRoot.querySelector("#custom-tool-form")?.addEventListener("submit", saveCustomTool);
   modalRoot.querySelector("#habit-form")?.addEventListener("submit", saveHabitForm);
@@ -172,6 +228,11 @@ async function handleAction(action, data = {}) {
   if (action === "complete-action") return completeAction(data.id);
   if (action === "plan-action") return planAction(data.id);
   if (action === "plan-today") return planToday(data.id);
+  if (action === "schedule-action") {
+    const record = state.actions.find(item => item.id === data.id);
+    if (record) return showModal(scheduleActionForm(state, record));
+  }
+  if (action === "complete-week-action") return completeAction(data.id);
   if (action === "new-stone") return showModal(stoneForm());
   if (action === "edit-stone") return showModal(stoneForm(state.stones.find(item => item.id === data.id)));
   if (action === "new-admin-stone") return createAdminStone();
@@ -195,8 +256,8 @@ async function handleAction(action, data = {}) {
   if (action === "import") return importData();
   if (action === "reset") return resetData();
   if (action === "stone-detail") return showStoneDetail(data.id);
-  if (action === "new-habit") return showModal(modal("Ajouter une habitude", habitForm(), `<button class="button button-primary wide" form="habit-form">Ajouter à mon suivi</button>`));
-  if (action === "edit-habit") return showModal(modal("Modifier mon habitude", habitForm(state.habits.find(item => item.id === data.id)), `<button class="button button-primary wide" form="habit-form">Enregistrer</button><button type="button" class="button button-outline" data-action="archive-habit" data-id="${data.id}">Archiver</button>`));
+  if (action === "new-habit") return showModal(modal("Ajouter une habitude", habitForm(null, state), `<button type="submit" class="button button-primary wide" form="habit-form">Ajouter à mon suivi</button>`));
+  if (action === "edit-habit") return showModal(modal("Modifier mon habitude", habitForm(state.habits.find(item => item.id === data.id), state), `<button type="submit" class="button button-primary wide" form="habit-form">Enregistrer</button><button type="button" class="button button-outline" data-action="archive-habit" data-id="${data.id}">Archiver</button>`));
   if (action === "archive-habit") return archiveHabit(data.id);
   if (action === "habit-filter") { selectHabitFilter(data.id || ""); render(); }
   if (action === "habit-month") { changeHabitMonth(Number(data.offset) || 0); render(); }
@@ -216,6 +277,11 @@ async function handleAction(action, data = {}) {
   if (action === "edit-capsule") return showModal(modal("Modifier la capsule", capsuleForm(state.capsules.find(item => item.id === data.id)), `<button class="button button-primary wide" form="capsule-form">Enregistrer</button>`));
   if (action === "mark-capsule") return handleCapsuleWatched(data.id);
   if (action === "remove-capsule") return removeCapsule(data.id);
+  if (action === "remove-resonance-image") return removeResonanceImage(data.id);
+  if (action === "history-shift") { shiftHistoryDate(Number(data.days) || 0); render(); }
+  if (action === "history-date") { selectHistoryDate(data.date); render(); }
+  if (action === "edit-weekly-objective") return showModal(weeklyObjectiveForm(state));
+  if (action === "weekly-objective") return showModal(weeklyObjectiveForm(state));
 }
 
 async function completeAction(id) {
@@ -254,9 +320,58 @@ async function handleHabitToggle(id) {
 async function saveHabitForm(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
   const existing = state.habits.find(item => item.id === id);
-  const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), emoji: fd.get("emoji").trim() || "🌱", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
+  const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), emoji: fd.get("emoji").trim() || "🌱", linkedVision: fd.get("linkedVision") === "on", linkedStoneId: fd.get("linkedStoneId") || "", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
   if (existing) Object.assign(existing, record); else state.habits.unshift(record);
   await persist(); closeModal(); render(); celebrate(existing ? "Habitude mise à jour." : "Nouvelle habitude ajoutée · +1 XP à chaque pas tenu.");
+}
+
+async function saveWeeklyObjective(event) {
+  event.preventDefault();
+  const week = getCurrentWeek(state);
+  week.objective = new FormData(event.currentTarget).get("objective").trim();
+  await persist(); closeModal(); render(); toast("Le cap prioritaire de la semaine est enregistré.", "🎯");
+}
+
+async function addResonanceImages(event) {
+  const input = event.currentTarget;
+  const files = [...(input.files || [])].filter(file => file.type.startsWith("image/"));
+  try {
+    for (const file of files) {
+      const dataUrl = await resizeLocalImage(file);
+      state.profile.resonanceImages ||= [];
+      state.profile.resonanceImages.unshift({ id: newId("vision-image"), name: file.name, dataUrl, createdAt: new Date().toISOString() });
+    }
+    if (files.length) { await persist(); render(); toast(`${files.length} image${files.length > 1 ? "s" : ""} ajoutée${files.length > 1 ? "s" : "e"} à ce qui résonne.`, "🖼️"); }
+  } catch (error) {
+    console.error("Image Vision non ajoutée", error);
+    toast("Cette image n’a pas pu être ajoutée. Essaie un autre fichier.", "🖼️");
+  } finally { input.value = ""; }
+}
+
+async function resizeLocalImage(file) {
+  const source = typeof createImageBitmap === "function"
+    ? await createImageBitmap(file)
+    : await new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+      image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image illisible")); };
+      image.src = url;
+    });
+  const width = source.width || source.naturalWidth;
+  const height = source.height || source.naturalHeight;
+  const scale = Math.min(1, 1400 / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+  source.close?.();
+  return canvas.toDataURL("image/jpeg", 0.84);
+}
+
+async function removeResonanceImage(id) {
+  state.profile.resonanceImages = state.profile.resonanceImages.filter(image => image.id !== id);
+  await persist(); render(); toast("Image retirée de ta Vision.", "🖼️");
 }
 
 async function archiveHabit(id) {
@@ -324,6 +439,31 @@ async function planToday(id) {
   await persist(); render(); toast("Action posée sur ta journée.", "🌤️");
 }
 
+async function scheduleActionInSlot(id, date, slot) {
+  const action = state.actions.find(item => item.id === id);
+  if (!action || action.status === "done") return false;
+  const week = getCurrentWeek(state);
+  if (!date || date < week.start || date > week.end || !slot) return false;
+  if (!canPlaceInTimeSlot(state.actions, { ...action, plannedDate: date, slot })) {
+    toast("Ce créneau contient déjà une action de taille supérieure à S. Choisis un autre créneau.", "🧭");
+    return false;
+  }
+  action.status = "weekly";
+  action.weekId = week.id;
+  action.plannedDate = date;
+  action.slot = slot;
+  await persist();
+  render();
+  toast(`${action.title} est placé dans ton planning.`, "🗓️");
+  return true;
+}
+
+async function saveScheduleAction(event) {
+  event.preventDefault();
+  const formData = new FormData(event.currentTarget);
+  if (await scheduleActionInSlot(formData.get("id"), formData.get("date"), formData.get("slot"))) closeModal();
+}
+
 async function saveActionForm(event) {
   event.preventDefault(); const form = event.currentTarget; const fd = new FormData(form); const id = fd.get("id");
   const existing = state.actions.find(item => item.id === id);
@@ -336,8 +476,7 @@ async function saveActionForm(event) {
   if (inWeek && slot && !plannedDate) { toast("Choisis un jour pour placer ce focus dans ta journée.", "📅"); return; }
   if (inWeek && plannedDate && (plannedDate < week.start || plannedDate > week.end)) { toast("Choisis un jour dans cette semaine.", "📅"); return; }
   if (inWeek && slot && plannedDate) {
-    const conflict = state.actions.find(item => item.id !== id && item.weekId === week.id && item.plannedDate === plannedDate && item.slot === slot && item.status !== "done" && item.status !== "abandoned" && item.status !== "split");
-    if (conflict) { toast("Ce bloc a déjà son focus. Déplace l’autre action ou choisis un autre moment.", "🧭"); return; }
+    if (!canPlaceInTimeSlot(state.actions, { id, effort: fd.get("effort") || "M", plannedDate, slot })) { toast("Ce créneau contient déjà une action de taille supérieure à S. Choisis un autre créneau.", "🧭"); return; }
   }
   const record = { ...(existing || {}), id: existing?.id || newId("action"), title: fd.get("title").trim(), stoneId, effort: fd.get("effort") || "M", criteria: fd.get("criteria").trim(), slot: inWeek ? slot : "", plannedDate: inWeek ? plannedDate : "", status: inWeek ? "weekly" : (stoneId ? "reserve" : "unassigned"), weekId: inWeek ? week.id : "" };
   if (existing) Object.assign(existing, record);
@@ -487,7 +626,7 @@ function startBreathing() {
 
 function showPastWins() {
   const wins = Object.entries(state.daily).sort(([a], [b]) => b.localeCompare(a)).flatMap(([date, day]) => (day.wins || []).map(win => ({ date, win }))).slice(0, 12);
-  showModal(modal("Mes victoires", wins.length ? `<div class="past-wins">${wins.map(item => `<div class="win-item"><span>✦</span><div>${escapeHTML(item.win)}<small>${new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(new Date(`${item.date}T12:00:00`))}</small></div></div>`).join("")}</div>` : `<div class="empty-card slim"><p>Ton livre d’or se remplit au fil de tes journées. Note une petite victoire depuis l’accueil.</p></div>`));
+  showModal(modal("Mes victoires", wins.length ? `<div class="past-wins">${wins.map(item => { const win = typeof item.win === "string" ? { text: item.win } : (item.win || {}); const linked = win.relatedType === "stone" ? state.stones.find(stone => stone.id === win.relatedId) : win.relatedType === "action" ? state.actions.find(action => action.id === win.relatedId) : null; const date = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(new Date(`${item.date}T12:00:00`)); return `<div class="win-item"><span>✦</span><div>${escapeHTML(win.text)}${linked ? `<small>${win.relatedType === "stone" ? "🎯" : "↳"} ${escapeHTML(linked.title)}</small>` : ""}<small>${date}</small></div></div>`; }).join("")}</div>` : `<div class="empty-card slim"><p>Ton livre d’or se remplit au fil de tes journées. Note une petite victoire depuis l’accueil.</p></div>`));
 }
 
 function exportData() {
@@ -530,7 +669,7 @@ function resetData() {
 
 function addOnboarding() {
   if (!state.profile.vision) {
-    showModal(modal("Un premier pas, à toi", `<div class="onboarding-mark">✦</div><p class="onboarding-copy">Avant de remplir ton espace, pose quelques mots sur la direction qui compte pour toi.</p><form id="vision-form"><label>Ma vision, en une phrase courte<input name="vision" required maxlength="180" autofocus placeholder="Ex. Créer dans la joie, préserver ma paix d’esprit et rayonner."></label><p class="form-hint">Tu pourras enrichir ta Vision au fil du temps.</p></form>`, `<button class="button button-primary wide" form="vision-form">Poser ma boussole <span>↗</span></button>`));
+    showModal(modal("Mon premier pas", `<div class="onboarding-mark">✦</div><p class="onboarding-copy">Avant de remplir ton espace, pose quelques mots sur la direction que tu souhaites atteindre.</p><form id="vision-form"><label>Mon identité en une phrase courte <small>(Quelle personne souhaites-tu être ?)</small><input name="vision" required maxlength="180" autofocus placeholder="Ex. Créer dans la joie, préserver ma paix d’esprit et rayonner."></label><p class="form-hint">Tu pourras enrichir ta Vision au fil du temps.</p></form>`, `<button type="submit" class="button button-primary wide" form="vision-form">Poser ma vision <span>↗</span></button>`));
     bindModalInteractions();
   }
 }
