@@ -19,3 +19,11 @@ test("rescheduling ignores the action itself and completed items do not occupy c
   assert.equal(canPlaceInTimeSlot(placed, action("l1", "L")), false);
   assert.equal(canPlaceInTimeSlot([action("done", "L", "done")], action("m2", "M")), true);
 });
+
+test("the full-day block follows the same capacity rule as timed blocks", () => {
+  const placed = [action("m1", "M")];
+  placed[0].slot = "";
+  assert.equal(canPlaceInTimeSlot(placed, { ...action("s1", "S"), slot: "" }), true);
+  assert.equal(canPlaceInTimeSlot(placed, { ...action("m2", "M"), slot: "" }), false);
+  assert.equal(canPlaceInTimeSlot(placed, action("m2", "M")), true);
+});

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createInitialState, normalizeState } from "../src/data.js";
-import { createChallenge, expireChallenges, markCapsuleWatched, markChallengeDay, monthGrid, toggleHabit } from "../src/engagement.js";
+import { createChallenge, dateShift, expireChallenges, markCapsuleWatched, markChallengeDay, monthGrid, toggleHabit } from "../src/engagement.js";
 
 test("V1 data upgrades without dropping existing profile or gains", () => {
   const old = { schemaVersion: 1, profile: { vision: "Avancer" }, stones: [], actions: [], xp: { total: 12, events: [] } };
@@ -28,6 +28,36 @@ test("habit checks award XP once and the seventh Grand Chelem doubles its bonus"
   const repeated = toggleHabit(state, "a", "2026-10-07");
   assert.equal(repeated.rewards.length, 0);
   assert.equal(state.xp.total, 101);
+});
+
+test("a linked habit doubles its daily point and the one-time Grand Chelem bonus", () => {
+  const state = createInitialState();
+  state.habits = [{ id: "linked", title: "Marcher", linkedStoneId: "goal", createdAtDate: "2026-10-01", active: true }];
+  const firstDay = toggleHabit(state, "linked", "2026-10-01");
+  assert.deepEqual(firstDay.rewards.map(item => item.amount), [2, 20]);
+  assert.equal(state.xp.total, 22);
+
+  let seventhDay;
+  for (let day = 2; day <= 7; day += 1) seventhDay = toggleHabit(state, "linked", `2026-10-0${day}`);
+  assert.deepEqual(seventhDay.rewards.map(item => item.amount), [2, 40]);
+  assert.equal(state.xp.total, 174);
+});
+
+test("21-day and 60-day linked habit streak milestones double their bonuses", () => {
+  const state = createInitialState();
+  state.habits = [{ id: "linked", title: "Lire", linkedStoneId: "goal", createdAtDate: "2026-01-01", active: true }, { id: "other", title: "Autre", createdAtDate: "2026-01-01", active: true }];
+  for (let day = 1; day < 21; day += 1) {
+    const date = dateShift("2026-01-01", day - 1);
+    state.habitLogs[date] = { linked: true };
+  }
+  const day21 = toggleHabit(state, "linked", dateShift("2026-01-01", 20));
+  assert.deepEqual(day21.rewards.map(item => item.amount), [2, 60]);
+
+  const second = createInitialState();
+  second.habits = [{ id: "linked", title: "Lire", linkedStoneId: "goal", createdAtDate: "2026-01-01", active: true }, { id: "other", title: "Autre", createdAtDate: "2026-01-01", active: true }];
+  for (let day = 0; day < 59; day += 1) second.habitLogs[dateShift("2026-01-01", day)] = { linked: true };
+  const day60 = toggleHabit(second, "linked", dateShift("2026-01-01", 59));
+  assert.deepEqual(day60.rewards.map(item => item.amount), [2, 120]);
 });
 
 test("challenge dates award progress once and an end bonus on completion", () => {

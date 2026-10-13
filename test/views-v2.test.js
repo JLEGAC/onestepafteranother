@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createInitialState, getCurrentWeek } from "../src/data.js";
-import { appShell, renderPage, retroForm, scheduleActionForm, weeklyObjectiveForm } from "../src/views.js";
+import { appShell, renderPage, retroForm, scheduleActionForm, weeklyObjectiveForm, visionForm } from "../src/views.js";
+import { habitForm } from "../src/engagement-views.js";
 
 test("V2 navigation targets render their page titles and primary actions", () => {
   const state = createInitialState();
@@ -19,13 +20,14 @@ test("V2 navigation targets render their page titles and primary actions", () =>
   }
 });
 
-test("weekly review button opens a form whose footer submits that form", () => {
+test("weekly cap omits review and reserve sections while the review form remains available", () => {
   const state = createInitialState();
   const week = getCurrentWeek(state);
   const page = renderPage(state, "week");
   const dialog = retroForm(state);
 
-  assert.match(page, /type="button" class="button button-soft" data-action="retro">Faire mon bilan<\/button>/);
+  assert.equal(page.includes('data-action="retro"'), false);
+  assert.equal(page.includes("Ma réserve"), false);
   assert.match(dialog, /<form id="retro-form">/);
   assert.match(dialog, new RegExp(`name="weekId" value="${week.id}"`));
   assert.match(dialog, /type="submit" class="button button-primary wide" form="retro-form">Clôturer ma semaine/);
@@ -34,20 +36,20 @@ test("weekly review button opens a form whose footer submits that form", () => {
 test("new navigation and dashboard follow the requested screen order", () => {
   const state = createInitialState();
   const shell = appShell(state, "home");
-  for (const label of ["Accueil", "Vision", "Cible", "Cap Hebdo", "Outils"]) assert.ok(shell.includes(label));
-  assert.equal(shell.includes("Réserve"), false);
+  for (const label of ["Accueil", "Vision", "Objectifs", "Cap Hebdo", "Outils", "Réserve"]) assert.ok(shell.includes(label));
+  assert.equal(shell.includes("Cible"), false);
   assert.ok(shell.includes("./logo.svg"));
   const home = renderPage(state, "home");
-  const positions = ["Batterie", "MA VISION", "MES HABITUDES", "FOCUS DU JOUR", "MES VICTOIRES"].map(label => home.indexOf(label));
+  const positions = ["Batterie", "MA VISION", "Mes habitudes", "Focus du jour", "Mes victoires"].map(label => home.indexOf(label));
   assert.ok(positions.every(position => position >= 0));
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
   assert.ok(home.includes("De quoi es-tu fier·e aujourd’hui ?"));
   assert.ok(home.includes("Cette victoire te permettra-t-elle d’atteindre l’un de tes objectifs ?"));
 });
 
-test("Cible combines habits and objectives and hides the admin helper once the goal exists", () => {
+test("Objectives page combines habits and objectives and hides the admin helper once the goal exists", () => {
   const state = createInitialState();
-  state.habits.push({ id: "walk", title: "Marcher", active: true, linkedVision: true });
+  state.habits.push({ id: "walk", title: "Marcher", active: true, linkedStoneId: "goal" });
   state.stones.push({ id: "goal", title: "Écrire" });
   let html = renderPage(state, "cible");
   assert.ok(html.includes("Mes objectifs et habitudes"));
@@ -58,6 +60,11 @@ test("Cible combines habits and objectives and hides the admin helper once the g
   state.stones.push({ id: "admin", title: "Gestion admin et obligations" });
   html = renderPage(state, "cible");
   assert.equal(html.includes("Tu peux aussi créer un objectif"), false);
+  const form = habitForm(state.habits[0], state);
+  assert.ok(form.includes("Déclencheur"));
+  assert.equal(form.includes("linkedVision"), false);
+  assert.ok(form.includes("🎯 Écrire"));
+  assert.ok(visionForm(state, "essentials").includes("Mes importants"));
 });
 
 test("Vision has resonance images; weekly cap, history, and accessible planning expose their controls", () => {
@@ -67,10 +74,18 @@ test("Vision has resonance images; weekly cap, history, and accessible planning 
   assert.ok(vision.includes("Ce qui résonne"));
   assert.ok(vision.includes("Ajouter des images"));
   assert.ok(vision.includes("repere.jpg"));
+  assert.ok(vision.includes('data-action="view-resonance-image"'));
   assert.equal(vision.includes("Les énergies qui m’inspirent"), false);
+  assert.ok(vision.indexOf("Ajouter des images") < vision.indexOf("word-cloud"));
+  assert.equal(vision.includes("MES ESSENTIELS"), false);
   assert.ok(renderPage(state, "week").includes("OBJECTIF DE LA SEMAINE"));
   assert.ok(renderPage(state, "history").includes("Historique"));
-  assert.equal(renderPage(state, "reserve").includes("<h1>Réserve</h1>"), false);
+  state.stones.push({ id: "goal", title: "Objectif test", icon: "🧭" });
+  state.actions.push({ id: "reserve-1", title: "Action réservée", stoneId: "goal", status: "reserve" }, { id: "unassigned-1", title: "Tâche non planifiée", status: "unassigned" });
+  const reserve = renderPage(state, "reserve");
+  assert.ok(reserve.includes("<h1>Réserve</h1>"));
+  assert.ok(reserve.includes("Action réservée"));
+  assert.equal(reserve.includes("Tâche non planifiée"), false);
   const week = getCurrentWeek(state);
   week.objective = "Un cap libre";
   assert.ok(weeklyObjectiveForm(state).includes("Un cap libre"));
@@ -80,6 +95,14 @@ test("Vision has resonance images; weekly cap, history, and accessible planning 
   assert.ok(weeklyPage.includes('data-week-slot="true"'));
   assert.ok(weeklyPage.includes('data-action="complete-week-action"'));
   assert.ok(scheduleActionForm(state, state.actions[0]).includes("schedule-action-form"));
+  assert.ok(scheduleActionForm(state, state.actions[0]).includes("Toute la journée"));
+  assert.ok(weeklyPage.includes("Toute la journée"));
+  assert.ok(weeklyPage.includes("＋ Ajouter une action"));
+  assert.ok(weeklyPage.includes("Matin"));
+  assert.equal(weeklyPage.includes("Midi"), false);
+  assert.equal(weeklyPage.includes("Après-midi"), false);
+  assert.equal(weeklyPage.includes("Soir"), false);
+  assert.ok(weeklyPage.includes('data-date="2026-10-12" data-slot=""'));
 });
 
 test("weekly review safely renders structured victories", () => {

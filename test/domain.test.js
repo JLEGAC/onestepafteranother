@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createInitialState, exportObject, mondayISO, stoneProgress, validateImport, weekEndISO } from "../src/data.js";
 import { addXP, levelFor, pointsForAction } from "../src/gamification.js";
 
-test("Grande Pierre progression includes its reserve actions and rounds 8/13 to 62%", () => {
+test("objective progress includes its reserve actions and rounds 8/13 to 62%", () => {
   const state = createInitialState();
   state.stones.push({ id: "stone-1" });
   for (let i = 0; i < 8; i++) state.actions.push({ id: `done-${i}`, stoneId: "stone-1", status: "done" });
