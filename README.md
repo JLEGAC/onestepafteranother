@@ -31,7 +31,7 @@ Ouvre ensuite `http://localhost:4173`. Le service worker et l’installation PWA
 - Jour de défi validé : +3 XP ; objectif atteint : +15 XP. Capsule marquée comme vue : +3 XP.
 - Les XP V1 déjà enregistrés restent inchangés. La base locale et les sauvegardes V1 sont migrées à la lecture/import.
 - Le tableau de bord réunit batterie, humeur, habitudes de la semaine, actions du jour et victoires.
-- « Cible » rassemble habitudes et objectifs ; « Cap Hebdo » affiche le cap et le planning défilant de la semaine.
+- « Objectifs » rassemble habitudes et objectifs ; « Cap Hebdo » affiche le cap et le planning défilant de la semaine ; « Réserve » liste les actions mises de côté.
 - La Vision est accessible directement, conserve « Ce qui résonne » et accepte des images locales.
 - L’historique permet de consulter les journées passées ; les victoires ont aussi leur page dédiée.
 - L’entrée et la page Réserve restent masquées jusqu’à une phase ultérieure ; les mécanismes existants de mise en réserve restent disponibles.

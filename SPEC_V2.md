@@ -7,13 +7,15 @@ La V2 conserve le périmètre et les principes de la [V1](SPEC_V1.md), puis ajou
 - Ajouter, modifier et archiver des habitudes ; l’archivage conserve le journal passé.
 - Cocher une habitude pour la date du jour, consulter le calendrier mensuel et filtrer par habitude ou par jour.
 - Voir les séries individuelles et les journées où toutes les habitudes actives ont été réalisées (Grand Chelem).
-- Une validation rapporte 1 XP, une seule fois par habitude et par date. Le Grand Chelem rapporte 10 XP ; après sept jours de Grand Chelem consécutifs, son bonus passe à 20 XP.
+- Une validation rapporte 1 XP, une seule fois par habitude et par date. Pour une habitude liée à un objectif, ce point est doublé.
+- Le Grand Chelem rapporte 10 XP ; après sept jours de Grand Chelem consécutifs, son bonus passe à 20 XP. Ce bonus est doublé une fois si au moins une habitude liée à un objectif participe au Grand Chelem.
+- Une série individuelle rapporte 30 XP au 21e jour et 60 XP au 60e jour. Le bonus est doublé lorsque l’habitude concernée est liée à un objectif.
 - Une journée vide ne retire aucun XP. Elle interrompt seulement la série de Grand Chelem.
 
 ## Défis
 
 - Un défi personnel actif à la fois, sur une période de sept jours ; choisir un objectif de 1 à 7 jours.
-- Partir d’une proposition ou saisir son propre défi ; rattacher éventuellement le défi à une habitude ou à une Grande Pierre.
+- Partir d’une proposition ou saisir son propre défi ; rattacher éventuellement le défi à une habitude ou à un objectif.
 - Valider sa participation pour la journée. Chaque jour validé rapporte 3 XP, et l’objectif atteint rapporte 15 XP supplémentaires.
 - Mettre le défi de côté sans pénalité. Il n’y a ni retrait d’XP ni perte des gains déjà obtenus.
 
@@ -33,14 +35,14 @@ La V2 conserve le périmètre et les principes de la [V1](SPEC_V1.md), puis ajou
 
 ## Écrans et navigation
 
-- La barre principale donne accès à Accueil, Vision, Cible, Cap Hebdo et Outils. La Réserve reste masquée jusqu’à une phase ultérieure, tandis que les mécanismes existants de mise en réserve sont conservés. Le logo fourni apparaît dans l’en-tête ; XP, profil et calendrier d’historique restent accessibles en haut.
+- La barre principale donne accès à Accueil, Vision, Objectifs, Cap Hebdo, Outils et Réserve. Le logo fourni apparaît dans l’en-tête ; XP, profil et calendrier d’historique restent accessibles en haut.
 - L’accueil présente la batterie et l’humeur côte à côte, la phrase de Vision, les habitudes avec les sept jours de la semaine, les actions du jour et les victoires. Une victoire peut être reliée à un objectif ou à une action.
-- Cible réunit les habitudes et les objectifs. Les habitudes liées à la Vision ou à un objectif portent une étoile ; leurs séries affichent « Premier jour », « Deuxième jour » ou « Série de X jours ».
-- Vision garde « Ce qui résonne », permet d’ajouter des images enregistrées localement et ne présente plus « Les énergies qui m’inspirent ».
-- Cap Hebdo montre le numéro de semaine, un cap prioritaire en texte libre, les actions et le planning horizontal. Le planning affiche d’abord lundi à jeudi et permet de faire défiler vers vendredi à dimanche.
+- Objectifs réunit les habitudes et les objectifs. Les habitudes liées à un objectif portent une étoile ; leurs séries affichent « Premier jour », « Deuxième jour » ou « Série de X jours ». Le champ « Déclencheur » remplace « Repère ou intention ».
+- Vision présente « Mes importants », « La vie que je veux bâtir » et « Ce qui résonne ». Les boutons d’ajout de mots et d’images précèdent les éléments ajoutés. Les images locales s’ouvrent en grand au toucher ou au clic.
+- Cap Hebdo montre le numéro de semaine, un cap prioritaire en texte libre, les actions et le planning horizontal. Le planning affiche d’abord lundi à jeudi et permet de faire défiler vers vendredi à dimanche. Chaque journée montre « Toute la journée » ; seuls les moments explicitement choisis pour cette journée sont affichés. Les bilans et l’aperçu Réserve ne figurent pas sur cette page.
+- Réserve est une page dédiée qui liste les actions dont le statut est « reserve ».
 - Les actions peuvent être déplacées à la souris ou au toucher ; un formulaire jour/moment sert d’alternative accessible au clavier. Un créneau peut contenir plusieurs actions S et les actions S peuvent cohabiter avec une action de taille supérieure. Une seconde action supérieure à S dans le même créneau invite à en choisir un autre. Une case permet de marquer l’action faite.
 - L’historique permet de revoir une journée et sa semaine ; les victoires ont une page dédiée.
-- La Réserve et sa page dédiée sont masquées jusqu’à une phase ultérieure.
 
 ## Comportement du planning
 
@@ -50,7 +52,7 @@ Le glisser-déposer est inclus dans cette version. Il gère le glissement tactil
 
 - Action terminée : 5 XP de base + bonus d’effort — S 10, M 20, L 35, XL 50, XXL 70.
 - Les gains V1 (humeur, énergie, victoire, Vision, respiration, rétrospective) restent tels qu’ils étaient.
-- Habitude validée : 1 XP ; Grand Chelem : 10 XP ou 20 XP à partir de sept jours consécutifs.
+- Habitude validée : 1 XP, doublé si elle est reliée à un objectif. Grand Chelem : 10 XP ou 20 XP à partir de sept jours consécutifs, doublé une fois si une habitude liée participe. Paliers individuels : +30 XP au jour 21 et +60 XP au jour 60, doublés pour une habitude liée.
 - Jour de défi validé : 3 XP ; objectif atteint : 15 XP supplémentaires.
 - Capsule marquée comme regardée : 3 XP, une seule fois.
 - Le total de XP historique n’est pas recalculé lors de la mise à niveau.
