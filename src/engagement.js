@@ -71,10 +71,20 @@ export function toggleHabit(state, habitId, date = todayISO()) {
 
   state.habitLogs[date][habitId] = true;
   const rewards = [];
-  if (addXP(state, 1, "habit", `${habitId}:${date}`)) rewards.push({ amount: 1, label: "Habitude validée" });
+  const linkedHabit = Boolean(habit.linkedStoneId);
+  const dailyPoints = linkedHabit ? 2 : 1;
+  if (addXP(state, dailyPoints, "habit", `${habitId}:${date}`)) rewards.push({ amount: dailyPoints, label: "Habitude validée" });
+  const streak = habitStreak(state, habitId, date);
+  const streakBonus = streak === 21 ? 30 : streak === 60 ? 60 : 0;
+  if (streakBonus) {
+    const amount = streakBonus * (linkedHabit ? 2 : 1);
+    if (addXP(state, amount, "habit-streak", `${habitId}:${date}:${streak}`)) rewards.push({ amount, label: `Série de ${streak} jours` });
+  }
   const summary = habitDaySummary(state, date);
   if (summary.total && summary.done === summary.total) {
-    const bonus = fullDayStreak(state, date) >= 7 ? 20 : 10;
+    const baseBonus = fullDayStreak(state, date) >= 7 ? 20 : 10;
+    const linkedCompletedHabit = habitsForDate(state, date).some(item => item.linkedStoneId && isHabitDone(state, item.id, date));
+    const bonus = baseBonus * (linkedCompletedHabit ? 2 : 1);
     if (addXP(state, bonus, "habit-grand-slam", date)) rewards.push({ amount: bonus, label: "Grand Chelem" });
   }
   return { changed: true, completed: true, summary, rewards };

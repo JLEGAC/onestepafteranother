@@ -246,6 +246,10 @@ async function handleAction(action, data = {}) {
   if (action === "edit-story") return showModal(visionForm(state, "story"));
   if (action === "edit-essentials") { resumeDecisionAfterEssentials = data.resumeDecision === "true"; if (resumeDecisionAfterEssentials) pendingDecisionProposal = modalRoot.querySelector('[name="proposal"]')?.value || ""; return showModal(visionForm(state, "essentials")); }
   if (action === "edit-resonance") return showModal(visionForm(state, "resonance"));
+  if (action === "view-resonance-image") {
+    const image = state.profile.resonanceImages?.find(item => item.id === data.id);
+    if (image) return showModal(modal("Ce qui résonne", `<div class="vision-lightbox"><img src="${escapeHTML(image.dataUrl)}" alt="${escapeHTML(image.name || "Image liée à ma Vision")}"></div>`));
+  }
   if (action === "edit-guides") return showModal(visionForm(state, "guides"));
   if (action === "decision") return showModal(decisionForm(state));
   if (action === "retro") return showModal(retroForm(state, data.week || ""));
@@ -320,9 +324,9 @@ async function handleHabitToggle(id) {
 async function saveHabitForm(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
   const existing = state.habits.find(item => item.id === id);
-  const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), emoji: fd.get("emoji").trim() || "🌱", linkedVision: fd.get("linkedVision") === "on", linkedStoneId: fd.get("linkedStoneId") || "", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
+  const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), emoji: fd.get("emoji").trim() || "🌱", linkedStoneId: fd.get("linkedStoneId") || "", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
   if (existing) Object.assign(existing, record); else state.habits.unshift(record);
-  await persist(); closeModal(); render(); celebrate(existing ? "Habitude mise à jour." : "Nouvelle habitude ajoutée · +1 XP à chaque pas tenu.");
+  await persist(); closeModal(); render(); celebrate(existing ? "Habitude mise à jour." : "Nouvelle habitude ajoutée · +1 XP, ou +2 si elle est liée à un objectif.");
 }
 
 async function saveWeeklyObjective(event) {
@@ -427,7 +431,7 @@ async function removeCapsule(id) {
 async function planAction(id) {
   const action = state.actions.find(item => item.id === id);
   if (!action) return;
-  if (!action.stoneId) { toast("Rattache d’abord cette action à une Grande Pierre.", "💎"); return; }
+  if (!action.stoneId) { toast("Rattache d’abord cette action à un objectif.", "🎯"); return; }
   const week = getCurrentWeek(state); action.status = "weekly"; action.weekId = week.id; await persist(); render(); toast("Action embarquée dans ton Cap Hebdo.", "🧭");
 }
 
@@ -443,7 +447,7 @@ async function scheduleActionInSlot(id, date, slot) {
   const action = state.actions.find(item => item.id === id);
   if (!action || action.status === "done") return false;
   const week = getCurrentWeek(state);
-  if (!date || date < week.start || date > week.end || !slot) return false;
+  if (!date || date < week.start || date > week.end || typeof slot !== "string") return false;
   if (!canPlaceInTimeSlot(state.actions, { ...action, plannedDate: date, slot })) {
     toast("Ce créneau contient déjà une action de taille supérieure à S. Choisis un autre créneau.", "🧭");
     return false;
@@ -470,12 +474,12 @@ async function saveActionForm(event) {
   const shouldSplit = Boolean(pendingAction?.split && !existing);
   const inWeek = fd.get("inWeek") === "yes";
   const week = getCurrentWeek(state); const stoneId = fd.get("stoneId") || null;
-  if (inWeek && !stoneId) { toast("Rattache cette action à une Grande Pierre avant de l’embarquer.", "💎"); form.elements.stoneId.focus(); return; }
+  if (inWeek && !stoneId) { toast("Rattache cette action à un objectif avant de l’embarquer.", "🎯"); form.elements.stoneId.focus(); return; }
   const slot = fd.get("slot") || "";
   const plannedDate = fd.get("plannedDate") || "";
   if (inWeek && slot && !plannedDate) { toast("Choisis un jour pour placer ce focus dans ta journée.", "📅"); return; }
   if (inWeek && plannedDate && (plannedDate < week.start || plannedDate > week.end)) { toast("Choisis un jour dans cette semaine.", "📅"); return; }
-  if (inWeek && slot && plannedDate) {
+  if (inWeek && plannedDate) {
     if (!canPlaceInTimeSlot(state.actions, { id, effort: fd.get("effort") || "M", plannedDate, slot })) { toast("Ce créneau contient déjà une action de taille supérieure à S. Choisis un autre créneau.", "🧭"); return; }
   }
   const record = { ...(existing || {}), id: existing?.id || newId("action"), title: fd.get("title").trim(), stoneId, effort: fd.get("effort") || "M", criteria: fd.get("criteria").trim(), slot: inWeek ? slot : "", plannedDate: inWeek ? plannedDate : "", status: inWeek ? "weekly" : (stoneId ? "reserve" : "unassigned"), weekId: inWeek ? week.id : "" };
@@ -495,7 +499,7 @@ async function saveStoneForm(event) {
   const stone = { id: id || newId("stone"), title: fd.get("title").trim(), icon: fd.get("icon").trim() || "💎", success: fd.get("success").trim(), anchor: fd.get("anchor").trim(), due: fd.get("due").trim() };
   const existing = state.stones.find(item => item.id === id);
   if (existing) Object.assign(existing, stone); else state.stones.unshift(stone);
-  await persist(); closeModal(); render(); celebrate(existing ? "Ta Grande Pierre est mise à jour." : "Une nouvelle Grande Pierre prend forme !");
+  await persist(); closeModal(); render(); celebrate(existing ? "Ton objectif est mis à jour." : "Un nouvel objectif prend forme !");
 }
 
 function fillStoneTemplate(key) {
@@ -511,9 +515,9 @@ function fillStoneTemplate(key) {
 
 async function createAdminStone() {
   const exists = state.stones.find(item => item.title.toLocaleLowerCase("fr") === "gestion, admin & obligations");
-  if (exists) { toast("Cette Grande Pierre existe déjà.", "📁"); return; }
+  if (exists) { toast("Cet objectif existe déjà.", "📁"); return; }
   state.stones.unshift({ id: newId("stone"), title: "Gestion, admin & obligations", icon: "📁", success: "Mes démarches importantes sont traitées et mes documents sont à jour.", anchor: "Libérer de l’espace mental.", due: "" });
-  await persist(); render(); celebrate("Pierre Admin créée · tu peux y rattacher tes tâches.");
+  await persist(); render(); celebrate("Objectif admin créé · tu peux y rattacher tes tâches.");
 }
 
 async function saveCustomTool(event) {
@@ -558,7 +562,7 @@ async function saveVisionForm(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); state.profile.vision = fd.get("vision").trim(); const earned = addXP(state, 10, "vision", "first"); await persist(); closeModal(); render(); celebrate(earned ? "Ta boussole est posée · +10 XP" : "Ta vision est mise à jour.");
 }
 async function saveStoryForm(event) { event.preventDefault(); state.profile.story = new FormData(event.currentTarget).get("story").trim(); await persist(); closeModal(); render(); toast("Ton récit est gardé précieusement."); }
-async function saveEssentialsForm(event) { event.preventDefault(); state.profile.essentials = new FormData(event.currentTarget).get("items").split("\n").map(x => x.trim()).filter(Boolean); await persist(); closeModal(); render(); toast("Tes essentiels sont à jour.", "🧭"); if (resumeDecisionAfterEssentials && state.profile.essentials.length) { resumeDecisionAfterEssentials = false; showModal(decisionForm(state, pendingDecisionProposal)); pendingDecisionProposal = ""; } }
+async function saveEssentialsForm(event) { event.preventDefault(); state.profile.essentials = new FormData(event.currentTarget).get("items").split("\n").map(x => x.trim()).filter(Boolean); await persist(); closeModal(); render(); toast("Tes importants sont à jour.", "🧭"); if (resumeDecisionAfterEssentials && state.profile.essentials.length) { resumeDecisionAfterEssentials = false; showModal(decisionForm(state, pendingDecisionProposal)); pendingDecisionProposal = ""; } }
 async function saveResonanceForm(event) { event.preventDefault(); state.profile.resonance = new FormData(event.currentTarget).get("items").split("\n").map(x => x.trim()).filter(Boolean); await persist(); closeModal(); render(); toast("Tes mots-repères sont enregistrés."); }
 async function saveGuidesForm(event) {
   event.preventDefault(); state.profile.guides = new FormData(event.currentTarget).get("items").split("\n").map(line => line.split("|").map(x => x.trim())).filter(parts => parts[1]).map(([emoji, name, qualities]) => ({ emoji: emoji || "✨", name, qualities: qualities || "" }));
@@ -651,7 +655,7 @@ function importData() {
       const stoneCount = pendingImport.stones.length;
       const actionCount = pendingImport.actions.length;
       const xpCount = pendingImport.xp.total;
-      showModal(modal("Vérifier la sauvegarde", `<div class="import-preview"><span class="import-icon">⬆</span><p>Cette sauvegarde contient :</p><ul><li><b>${stoneCount}</b> Grande(s) Pierre(s)</li><li><b>${actionCount}</b> micro-action(s)</li><li><b>${xpCount}</b> XP</li></ul><p class="warning-copy">L’import remplacera toutes les données actuellement enregistrées sur cet appareil.</p></div>`, `<button class="button button-outline" data-action="close-modal">Annuler</button><button class="button button-primary" data-action="confirm-import">Remplacer et importer</button>`));
+      showModal(modal("Vérifier la sauvegarde", `<div class="import-preview"><span class="import-icon">⬆</span><p>Cette sauvegarde contient :</p><ul><li><b>${stoneCount}</b> objectif(s)</li><li><b>${actionCount}</b> micro-action(s)</li><li><b>${xpCount}</b> XP</li></ul><p class="warning-copy">L’import remplacera toutes les données actuellement enregistrées sur cet appareil.</p></div>`, `<button class="button button-outline" data-action="close-modal">Annuler</button><button class="button button-primary" data-action="confirm-import">Remplacer et importer</button>`));
     } catch (error) { alert(error.message || "Impossible de lire cette sauvegarde."); }
   });
   input.click();

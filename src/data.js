@@ -139,7 +139,7 @@ export function validateImport(parsed) {
     throw new Error("Ce fichier ne semble pas être une sauvegarde valide de l’application.");
   }
   if (!Array.isArray(parsed.data.stones) || !Array.isArray(parsed.data.actions)) {
-    throw new Error("La sauvegarde est incomplète : Grandes Pierres ou actions manquantes.");
+    throw new Error("La sauvegarde est incomplète : objectifs ou actions manquants.");
   }
   if (parsed.exportVersion !== undefined && ![1, 2, 3].includes(parsed.exportVersion)) {
     throw new Error("Cette sauvegarde provient d’une version plus récente de l’application.");
