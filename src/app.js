@@ -1,8 +1,8 @@
 import { addXP, badgesFor, levelFor, milestoneFor, pointsForAction, themeRewards } from "./gamification.js";
 import { createInitialState, exportObject, getCurrentWeek, loadState, newId, saveState, stoneProgress, todayISO, validateImport } from "./data.js";
-import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, retroForm, scheduleActionForm, selectHistoryDate, shiftHistoryDate, stoneForm, visionForm, weeklyObjectiveForm } from "./views.js";
+import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, retroForm, scheduleActionForm, selectHistoryDate, shiftHistoryDate, stoneForm, stepForm, visionForm, weeklyObjectiveForm } from "./views.js";
 import { changeHabitMonth, selectHabitDate, selectHabitFilter, habitForm, challengeForm, capsuleForm } from "./engagement-views.js";
-import { createChallenge, expireChallenges, markCapsuleWatched, markChallengeDay, stopChallenge, toggleHabit } from "./engagement.js";
+import { createChallenge, expireChallenges, markCapsuleWatched, markChallengeDay, stopChallenge, toggleHabit, toggleHabitHistory } from "./engagement.js";
 import { canPlaceInTimeSlot } from "./planning.js";
 
 let state = await loadState();
@@ -24,6 +24,8 @@ const toastRoot = document.querySelector("#toast-root");
 
 function render() {
   document.documentElement.dataset.theme = state.preferences.theme || "forest";
+  document.documentElement.dataset.mode = state.preferences.darkMode ? "dark" : "light";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", state.preferences.darkMode ? "#151b19" : "#f7f5ef");
   app.innerHTML = appShell(state, page);
   if (installPrompt && page === "home" && !window.matchMedia("(display-mode: standalone)").matches) {
     const banner = document.createElement("div");
@@ -138,6 +140,7 @@ function bindPageInteractions() {
   document.querySelectorAll("[data-setting]").forEach(input => input.addEventListener("change", async () => {
     state.preferences[input.dataset.setting] = input.checked;
     await persist();
+    if (input.dataset.setting === "darkMode") { render(); return; }
     toast(input.checked ? "Préférence activée." : "Préférence désactivée.");
   }));
   document.querySelectorAll("[data-theme-setting]").forEach(input => input.addEventListener("change", async () => {
@@ -152,6 +155,26 @@ function bindPageInteractions() {
     if (button.dataset.action === "schedule-action" && suppressScheduleClick === button.dataset.id) { suppressScheduleClick = ""; return; }
     handleAction(button.dataset.action, button.dataset);
   }));
+  bindReserveReorder();
+}
+
+function bindReserveReorder() {
+  const rows = [...document.querySelectorAll("[data-reserve-id]")];
+  let dragged = "";
+  rows.forEach(row => {
+    row.addEventListener("dragstart", event => { dragged = row.dataset.reserveId; row.classList.add("is-dragging"); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", dragged); });
+    row.addEventListener("dragend", () => { dragged = ""; rows.forEach(item => item.classList.remove("is-dragging", "is-drop-target")); });
+    row.addEventListener("dragover", event => { if (!dragged || dragged === row.dataset.reserveId) return; event.preventDefault(); row.classList.add("is-drop-target"); });
+    row.addEventListener("dragleave", () => row.classList.remove("is-drop-target"));
+    row.addEventListener("drop", async event => {
+      event.preventDefault();
+      const ids = rows.map(item => item.dataset.reserveId);
+      const from = ids.indexOf(dragged); const to = ids.indexOf(row.dataset.reserveId);
+      if (from < 0 || to < 0 || from === to) return;
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      state.reserveOrder = ids; await persist(); render();
+    });
+  });
 }
 
 function bindScheduleDragInteractions() {
@@ -201,9 +224,17 @@ function bindModalInteractions() {
   card?.addEventListener("click", event => event.stopPropagation());
   modalRoot.querySelector("#action-form")?.addEventListener("change", event => {
     if (event.target.name === "effort") modalRoot.querySelector("#xxl-note").hidden = event.target.value !== "XXL";
+    if (event.target.name === "stoneId") {
+      const stepSelect = modalRoot.querySelector('[name="stepId"]');
+      const selectedAction = state.actions.find(item => item.id === modalRoot.querySelector('[name="id"]')?.value);
+      const options = (state.steps || []).filter(step => step.stoneId === event.target.value).map(step => `<option value="${escapeHTML(step.id)}" ${selectedAction?.stepId === step.id ? "selected" : ""}>${escapeHTML(step.title)}</option>`).join("");
+      stepSelect.innerHTML = `<option value="">Rattacher directement à l’objectif</option>${options}`;
+      if (!options) stepSelect.value = "";
+    }
   });
   modalRoot.querySelector("#action-form")?.addEventListener("submit", saveActionForm);
   modalRoot.querySelector("#stone-form")?.addEventListener("submit", saveStoneForm);
+  modalRoot.querySelector("#step-form")?.addEventListener("submit", saveStepForm);
   modalRoot.querySelector("#vision-form")?.addEventListener("submit", saveVisionForm);
   modalRoot.querySelector("#story-form")?.addEventListener("submit", saveStoryForm);
   modalRoot.querySelector("#essentials-form")?.addEventListener("submit", saveEssentialsForm);
@@ -223,7 +254,7 @@ function bindModalInteractions() {
 
 async function handleAction(action, data = {}) {
   if (action === "close-modal") return closeModal();
-  if (action === "new-action") return showModal(actionForm(state, null, data.stone || ""));
+  if (action === "new-action") return showModal(actionForm(state, null, data.stone || "", data.step || ""));
   if (action === "edit-action") return showModal(actionForm(state, state.actions.find(item => item.id === data.id)));
   if (action === "complete-action") return completeAction(data.id);
   if (action === "plan-action") return planAction(data.id);
@@ -235,6 +266,9 @@ async function handleAction(action, data = {}) {
   if (action === "complete-week-action") return completeAction(data.id);
   if (action === "new-stone") return showModal(stoneForm());
   if (action === "edit-stone") return showModal(stoneForm(state.stones.find(item => item.id === data.id)));
+  if (action === "new-step") return showModal(stepForm(data.stone));
+  if (action === "edit-step") return showModal(stepForm(data.stone, state.steps.find(item => item.id === data.id)));
+  if (action === "reserve-move") return moveReserveAction(data.id, Number(data.delta) || 0);
   if (action === "new-admin-stone") return createAdminStone();
   if (action === "blocked") return showModal(blockerForm(state.actions.find(item => item.id === data.id)));
   if (action === "dismiss-reminder") { state.daily[todayISO()] ||= {}; state.daily[todayISO()].dismissedReminder = true; persist().then(render); }
@@ -267,6 +301,7 @@ async function handleAction(action, data = {}) {
   if (action === "habit-month") { changeHabitMonth(Number(data.offset) || 0); render(); }
   if (action === "habit-date") { selectHabitDate(data.date); render(); }
   if (action === "toggle-habit") return handleHabitToggle(data.id);
+  if (action === "toggle-habit-history") return handleHabitHistoryToggle(data.id, data.date);
   if (action === "new-challenge") {
     if (state.challenges.filter(item => item.status === "active").length >= 1) return toast("Un seul défi actif à la fois. Termine-le ou mets-le de côté pour en choisir un autre.", "🎯");
     return showModal(modal("Choisir mon défi", challengeForm(state), `<button class="button button-primary wide" form="challenge-form">Lancer ce défi</button>`));
@@ -319,6 +354,14 @@ async function handleHabitToggle(id) {
   if (result.completed && reward) celebrate([`+${reward} XP · ${result.rewards.map(item => item.label).join(" + ")}`, badge].filter(Boolean).join(" · "));
   else if (result.completed) toast("Habitude de nouveau cochée · les XP de cette date avaient déjà été gagnés.", "🌱");
   else toast("Habitude décochée. Tes XP déjà gagnés restent acquis.", "🌿");
+}
+
+async function handleHabitHistoryToggle(id, date) {
+  const result = toggleHabitHistory(state, id, date);
+  if (result.locked) return toast("L’historique de cette habitude se débloque après 10 jours consécutifs de suivi.", "🔒");
+  if (!result.changed) return;
+  await persist(); render();
+  toast(result.completed ? "Habitude ajoutée à cette date passée. Aucun XP n’est recalculé." : "Validation historique retirée.", "🌱");
 }
 
 async function saveHabitForm(event) {
@@ -473,7 +516,13 @@ async function saveActionForm(event) {
   const existing = state.actions.find(item => item.id === id);
   const shouldSplit = Boolean(pendingAction?.split && !existing);
   const inWeek = fd.get("inWeek") === "yes";
-  const week = getCurrentWeek(state); const stoneId = fd.get("stoneId") || null;
+  const week = getCurrentWeek(state); let stoneId = fd.get("stoneId") || null;
+  const stepId = fd.get("stepId") || "";
+  if (stepId) {
+    const step = state.steps.find(item => item.id === stepId);
+    if (!step) { toast("Cette étape n’existe plus. Choisis un objectif ou une autre étape.", "🎯"); return; }
+    stoneId = step.stoneId;
+  }
   if (inWeek && !stoneId) { toast("Rattache cette action à un objectif avant de l’embarquer.", "🎯"); form.elements.stoneId.focus(); return; }
   const slot = fd.get("slot") || "";
   const plannedDate = fd.get("plannedDate") || "";
@@ -482,31 +531,55 @@ async function saveActionForm(event) {
   if (inWeek && plannedDate) {
     if (!canPlaceInTimeSlot(state.actions, { id, effort: fd.get("effort") || "M", plannedDate, slot })) { toast("Ce créneau contient déjà une action de taille supérieure à S. Choisis un autre créneau.", "🧭"); return; }
   }
-  const record = { ...(existing || {}), id: existing?.id || newId("action"), title: fd.get("title").trim(), stoneId, effort: fd.get("effort") || "M", criteria: fd.get("criteria").trim(), slot: inWeek ? slot : "", plannedDate: inWeek ? plannedDate : "", status: inWeek ? "weekly" : (stoneId ? "reserve" : "unassigned"), weekId: inWeek ? week.id : "" };
+  const record = { ...(existing || {}), id: existing?.id || newId("action"), title: fd.get("title").trim(), stoneId, stepId, effort: fd.get("effort") || "M", criteria: fd.get("criteria").trim(), slot: inWeek ? slot : "", plannedDate: inWeek ? plannedDate : "", status: inWeek ? "weekly" : (stoneId ? "reserve" : "unassigned"), weekId: inWeek ? week.id : "" };
   if (existing) Object.assign(existing, record);
   else if (shouldSplit) {
     const lines = fd.get("criteria").split("\n").map(line => line.replace(/^\s*\d+[.)-]?\s*/, "").trim()).filter(Boolean).slice(0, 5);
     if (lines.length < 2) { toast("Ajoute au moins deux étapes, une par ligne.", "🪨"); return; }
     pendingAction = null;
     record.status = "split"; record.weekId = ""; record.slot = ""; state.actions.unshift(record);
-    for (const title of lines) state.actions.unshift({ id: newId("action"), title, stoneId, effort: record.effort === "XXL" ? "M" : record.effort, criteria: "", slot: "", status: stoneId ? "reserve" : "unassigned", weekId: "", parentId: record.id });
+    for (const title of lines) state.actions.unshift({ id: newId("action"), title, stoneId, stepId, effort: record.effort === "XXL" ? "M" : record.effort, criteria: "", slot: "", status: stoneId ? "reserve" : "unassigned", weekId: "", parentId: record.id });
   } else { pendingAction = null; state.actions.unshift(record); }
   await persist(); closeModal(); render(); toast(shouldSplit ? "Action découpée en étapes plus petites." : existing ? "Micro-action mise à jour." : "Micro-action ajoutée à ton chemin.", "✨");
 }
 
 async function saveStoneForm(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
-  const stone = { id: id || newId("stone"), title: fd.get("title").trim(), icon: fd.get("icon").trim() || "💎", success: fd.get("success").trim(), anchor: fd.get("anchor").trim(), due: fd.get("due").trim() };
+  let title = fd.get("title").trim();
+  const leadingEmoji = title.match(/^\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*/u)?.[0];
+  const icon = leadingEmoji || state.stones.find(item => item.id === id)?.icon || "🎯";
+  if (leadingEmoji) title = title.slice(leadingEmoji.length).trimStart();
+  const stone = { id: id || newId("stone"), title, icon, success: fd.get("success").trim(), anchor: fd.get("anchor").trim(), due: fd.get("due").trim() };
   const existing = state.stones.find(item => item.id === id);
   if (existing) Object.assign(existing, stone); else state.stones.unshift(stone);
   await persist(); closeModal(); render(); celebrate(existing ? "Ton objectif est mis à jour." : "Un nouvel objectif prend forme !");
 }
 
+async function saveStepForm(event) {
+  event.preventDefault();
+  const fd = new FormData(event.currentTarget); const id = fd.get("id");
+  const record = { id: id || newId("step"), stoneId: fd.get("stoneId"), title: fd.get("title").trim() };
+  const existing = state.steps.find(item => item.id === id);
+  if (existing) Object.assign(existing, record); else state.steps.push(record);
+  await persist(); closeModal(); render();
+  toast(existing ? "Étape mise à jour." : "Étape ajoutée à l’objectif.", "🪜");
+}
+
+async function moveReserveAction(id, delta) {
+  const list = state.actions.filter(action => action.status === "reserve");
+  const order = (state.reserveOrder || []).filter(item => list.some(action => action.id === item));
+  for (const action of list) if (!order.includes(action.id)) order.push(action.id);
+  const index = order.indexOf(id); const target = index + delta;
+  if (index < 0 || target < 0 || target >= order.length) return;
+  [order[index], order[target]] = [order[target], order[index]];
+  state.reserveOrder = order; await persist(); render();
+}
+
 function fillStoneTemplate(key) {
   const templates = {
-    admin: { title: "Gestion, admin & obligations", icon: "📁", success: "Mes démarches importantes sont traitées et mes documents sont à jour.", anchor: "Libérer de l’espace mental et préserver ma tranquillité." },
-    project: { title: "Faire avancer un projet important", icon: "💎", success: "Le résultat concret qui compte pour moi est terminé.", anchor: "Avancer vers ce qui me tient à cœur." },
-    wellbeing: { title: "Prendre soin de moi", icon: "🌿", success: "J’ai installé des gestes qui soutiennent mon équilibre.", anchor: "Préserver mon énergie et mon bien-être." }
+    admin: { title: "📁 Gestion, admin & obligations", success: "Mes démarches importantes sont traitées et mes documents sont à jour.", anchor: "Libérer de l’espace mental et préserver ma tranquillité." },
+    project: { title: "🎯 Faire avancer un projet important", success: "Le résultat concret qui compte pour moi est terminé.", anchor: "Avancer vers ce qui me tient à cœur." },
+    wellbeing: { title: "🌿 Prendre soin de moi", success: "J’ai installé des gestes qui soutiennent mon équilibre.", anchor: "Préserver mon énergie et mon bien-être." }
   };
   const item = templates[key]; if (!item) return;
   for (const [field, value] of Object.entries(item)) modalRoot.querySelector(`[name="${field}"]`).value = value;
@@ -514,7 +587,7 @@ function fillStoneTemplate(key) {
 }
 
 async function createAdminStone() {
-  const exists = state.stones.find(item => item.title.toLocaleLowerCase("fr") === "gestion, admin & obligations");
+  const exists = state.stones.find(item => item.title.toLocaleLowerCase("fr").includes("gestion, admin & obligations"));
   if (exists) { toast("Cet objectif existe déjà.", "📁"); return; }
   state.stones.unshift({ id: newId("stone"), title: "Gestion, admin & obligations", icon: "📁", success: "Mes démarches importantes sont traitées et mes documents sont à jour.", anchor: "Libérer de l’espace mental.", due: "" });
   await persist(); render(); celebrate("Objectif admin créé · tu peux y rattacher tes tâches.");
@@ -534,7 +607,7 @@ function splitRecord(action, source = "blocker") {
   action.status = "split"; action.weekId = ""; action.slot = ""; action.plannedDate = "";
   const childEffort = action.effort === "XXL" ? "L" : action.effort === "XL" ? "M" : "S";
   const children = [1, 2].map(number => ({
-    id: newId("action"), title: `${action.title} — étape ${number}`, stoneId: action.stoneId,
+    id: newId("action"), title: `${action.title} — étape ${number}`, stoneId: action.stoneId, stepId: action.stepId || "",
     effort: childEffort, criteria: "", slot: "", plannedDate: "", status: "reserve", weekId: "", parentId: action.id,
     splitSource: source
   }));
@@ -563,7 +636,15 @@ async function saveVisionForm(event) {
 }
 async function saveStoryForm(event) { event.preventDefault(); state.profile.story = new FormData(event.currentTarget).get("story").trim(); await persist(); closeModal(); render(); toast("Ton récit est gardé précieusement."); }
 async function saveEssentialsForm(event) { event.preventDefault(); state.profile.essentials = new FormData(event.currentTarget).get("items").split("\n").map(x => x.trim()).filter(Boolean); await persist(); closeModal(); render(); toast("Tes importants sont à jour.", "🧭"); if (resumeDecisionAfterEssentials && state.profile.essentials.length) { resumeDecisionAfterEssentials = false; showModal(decisionForm(state, pendingDecisionProposal)); pendingDecisionProposal = ""; } }
-async function saveResonanceForm(event) { event.preventDefault(); state.profile.resonance = new FormData(event.currentTarget).get("items").split("\n").map(x => x.trim()).filter(Boolean); await persist(); closeModal(); render(); toast("Tes mots-repères sont enregistrés."); }
+async function saveResonanceForm(event) {
+  event.preventDefault();
+  const previous = new Set(state.profile.resonance || []);
+  const words = new FormData(event.currentTarget).get("items").split("\n").map(x => x.trim()).filter(Boolean);
+  const added = words.filter(word => !previous.has(word)).length;
+  state.profile.resonance = words;
+  await persist(); closeModal(); render();
+  toast(added ? `${added} mot${added > 1 ? "s" : ""} ajouté${added > 1 ? "s" : ""} à ce qui résonne.` : "Tes mots-repères sont à jour.");
+}
 async function saveGuidesForm(event) {
   event.preventDefault(); state.profile.guides = new FormData(event.currentTarget).get("items").split("\n").map(line => line.split("|").map(x => x.trim())).filter(parts => parts[1]).map(([emoji, name, qualities]) => ({ emoji: emoji || "✨", name, qualities: qualities || "" }));
   await persist(); closeModal(); render(); toast("Tes figures guides sont enregistrées.");
@@ -603,10 +684,20 @@ async function saveRetro(event) {
 }
 
 function showStoneDetail(id) {
-  const stone = state.stones.find(s => s.id === id); if (!stone) return;
-  const progress = stoneProgress(state, id); const actions = state.actions.filter(a => a.stoneId === id);
-  const reserve = actions.filter(a => a.status === "reserve" || a.status === "unassigned"); const done = actions.filter(a => a.status === "done");
-  showModal(modal(`${stone.icon || "💎"} ${stone.title}`, `<div class="stone-detail"><div class="progress-label"><span>${progress.done}/${progress.total} actions accomplies</span><b>${progress.percent}%</b></div><div class="progress-track"><span style="width:${progress.percent}%"></span></div><p class="form-hint">Calcul : actions accomplies ÷ toutes les actions rattachées, réserve comprise.</p>${stone.due ? `<p>Échéance : ${escapeHTML(stone.due)}</p>` : ""}${stone.success ? `<h3>Critère de succès</h3><p>${escapeHTML(stone.success)}</p>` : ""}${stone.anchor ? `<h3>Mon ancrage émotionnel</h3><p>${escapeHTML(stone.anchor)}</p>` : ""}<h3>Réservoir d’actions</h3>${reserve.length ? reserve.map(a => `<div class="detail-action"><b>${escapeHTML(a.title)}</b><small>${a.effort} · ${escapeHTML(a.criteria || "")}</small><button class="button button-soft button-small" data-action="plan-action" data-id="${a.id}">＋ Embarquer dans mon Cap</button></div>`).join("") : `<p class="muted-copy">Aucune action en réserve pour le moment.</p>`}<h3>Ce qui est déjà bâti (${done.length})</h3>${done.map(a => `<div class="detail-done">✓ ${escapeHTML(a.title)}</div>`).join("")}</div>`, `<button class="button button-outline" data-action="edit-stone" data-id="${stone.id}">Modifier</button><button class="button button-primary" data-action="new-action" data-stone="${stone.id}">＋ Ajouter une micro-action</button>`));
+  const stone = state.stones.find(item => item.id === id); if (!stone) return;
+  const progress = stoneProgress(state, id);
+  const dueLabel = /^\d{4}-\d{2}-\d{2}$/.test(stone.due || "") ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${stone.due}T12:00:00`)) : stone.due;
+  const steps = (state.steps || []).filter(step => step.stoneId === id);
+  const stepIds = new Set(steps.map(step => step.id));
+  const actions = state.actions.filter(action => action.stoneId === id || stepIds.has(action.stepId));
+  const renderAction = action => `<div class="detail-action ${action.status === "done" ? "is-done" : ""}"><b>${action.status === "done" ? "✓ " : "○ "}${escapeHTML(action.title)}</b><small>${escapeHTML(action.effort || "M")} · ${escapeHTML(action.criteria || (action.status === "reserve" ? "Dans la réserve" : action.status === "weekly" ? "Dans le Cap" : ""))}</small>${action.status === "reserve" ? `<button class="button button-soft button-small" data-action="plan-action" data-id="${action.id}">＋ Embarquer dans mon Cap</button>` : ""}</div>`;
+  const renderStep = step => {
+    const linked = actions.filter(action => action.stepId === step.id && action.status !== "abandoned" && action.status !== "split");
+    const done = linked.filter(action => action.status === "done").length;
+    return `<section class="objective-step"><div class="objective-step-heading"><h3>${escapeHTML(step.title)} <small>${done}/${linked.length} actions</small></h3><button class="more-button" data-action="edit-step" data-id="${step.id}" data-stone="${id}" aria-label="Modifier l’étape">✎</button></div>${linked.length ? linked.map(renderAction).join("") : `<p class="muted-copy">Aucune action rattachée à cette étape.</p>`}<button class="text-button" data-action="new-action" data-stone="${id}" data-step="${step.id}">＋ Ajouter une action à cette étape</button></section>`;
+  };
+  const direct = actions.filter(action => !action.stepId && action.status !== "abandoned" && action.status !== "split");
+  showModal(modal(`${stone.icon || "🎯"} ${escapeHTML(stone.title.replace(/^\p{Extended_Pictographic}(?:\uFE0F)?\s*/u, ""))}`, `<div class="stone-detail"><div class="progress-label"><span>${progress.done}/${progress.total} actions accomplies</span><b>${progress.percent}%</b></div><div class="progress-track"><span style="width:${progress.percent}%"></span></div><p class="form-hint">Calcul : actions accomplies ÷ toutes les actions rattachées, réserve comprise.</p>${dueLabel ? `<p>Échéance : ${escapeHTML(dueLabel)}</p>` : ""}${stone.success ? `<h3>Critère de succès</h3><p>${escapeHTML(stone.success)}</p>` : ""}${stone.anchor ? `<h3>Bénéfice</h3><p>${escapeHTML(stone.anchor)}</p>` : ""}<h3>Étapes</h3>${steps.length ? steps.map(renderStep).join("") : `<p class="muted-copy">Tu peux ajouter des étapes pour structurer cet objectif.</p>`}<button class="button button-outline button-small" data-action="new-step" data-stone="${id}">＋ Ajouter une étape</button>${direct.length ? `<h3>Actions directement rattachées</h3>${direct.map(renderAction).join("")}` : ""}</div>`, `<button class="button button-outline" data-action="edit-stone" data-id="${stone.id}">Modifier</button><button class="button button-primary" data-action="new-action" data-stone="${stone.id}">＋ Ajouter une action</button>`));
 }
 
 function escapeHTML(value) { return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char])); }

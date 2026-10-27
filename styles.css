@@ -68,3 +68,33 @@ button.habit-day-cell{cursor:pointer}.habit-day-cell.empty{visibility:hidden}.ha
 .vision-lightbox img{display:block;width:auto;height:auto;max-width:100%;max-height:74dvh;object-fit:contain}
 .week-time-slot.all-day-slot{background:#e8f0eb}
 .week-actions-heading{display:flex;align-items:center;gap:8px}
+
+/* Thème sombre choisi dans le profil */
+html[data-mode="dark"]{--ink:#e7eee9;--muted:#a4b1aa;--paper:#151b19;--white:#202925;--green:#8bb9a2;--green-2:#9cc8b2;--green-pale:#2a3c33;--gold:#f0c878;--gold-pale:#403723;--coral:#e59a80;--line:#36433d;--shadow:0 12px 36px rgba(0,0,0,.22);color-scheme:dark}
+html[data-mode="dark"] body{background:var(--paper);color:var(--ink)}
+html[data-mode="dark"] .topbar,html[data-mode="dark"] .bottom-nav{background:rgba(25,33,29,.96);border-color:var(--line)}
+html[data-mode="dark"] .checkin-card,html[data-mode="dark"] .action-card,html[data-mode="dark"] .stone-card,html[data-mode="dark"] .history-card,html[data-mode="dark"] .week-progress,html[data-mode="dark"] .week-objective,html[data-mode="dark"] .week-time-slot,html[data-mode="dark"] .win-section,html[data-mode="dark"] .win-item,html[data-mode="dark"] .settings-card,html[data-mode="dark"] .modal-card,html[data-mode="dark"] .habit-row,html[data-mode="dark"] .habit-week-card,html[data-mode="dark"] .cible-habit-row,html[data-mode="dark"] .habit-day-detail,html[data-mode="dark"] .tool-card,html[data-mode="dark"] .capsule-card,html[data-mode="dark"] .challenge-card,html[data-mode="dark"] .xp-profile-card,html[data-mode="dark"] .story-card,html[data-mode="dark"] .vision-quote-card,html[data-mode="dark"] .objective-step{background:#202925;color:var(--ink);border-color:var(--line)}
+html[data-mode="dark"] .empty-card,html[data-mode="dark"] .gentle-reminder,html[data-mode="dark"] .retro-callout,html[data-mode="dark"] .habit-streak-card,html[data-mode="dark"] .week-slot-action{background:#252f2a;color:var(--ink);border-color:var(--line)}
+html[data-mode="dark"] input:not([type="checkbox"]):not([type="radio"]),html[data-mode="dark"] textarea,html[data-mode="dark"] select{background:#19211d;color:var(--ink);border-color:#46544b}
+html[data-mode="dark"] .inline-add input{background:#19211d;color:var(--ink)}
+html[data-mode="dark"] .button-outline,html[data-mode="dark"] .button-soft,html[data-mode="dark"] .icon-button,html[data-mode="dark"] .more-button,html[data-mode="dark"] .add-button{background:#29362f;color:#c6e2d1;border-color:#46554b}
+html[data-mode="dark"] .button-primary,html[data-mode="dark"] .round-add{background:#477969;color:#fff}
+html[data-mode="dark"] .button-complete{background:#264432;color:#b7e0bf;border-color:#385a42}
+html[data-mode="dark"] .date-chip,html[data-mode="dark"] .count-badge,html[data-mode="dark"] .reserve-tag,html[data-mode="dark"] .need-chip,html[data-mode="dark"] .energy-choice{background:#2b3530;color:#c2cec6;border-color:#3d4942}
+html[data-mode="dark"] .mood-choice.selected,html[data-mode="dark"] .energy-choice.selected{background:#453a25;border-color:#79643e}
+html[data-mode="dark"] .vision-strip{background:#302d25;border-color:#494334}
+html[data-mode="dark"] .vision-orb{background:#49402d;color:#f0cd7d}
+html[data-mode="dark"] .hero-card{background:radial-gradient(circle at 88% 6%,rgba(239,197,118,.2),transparent 27%),linear-gradient(135deg,#284b40,#1c332d)}
+html[data-mode="dark"] .xp-pill{background:#342f24;border-color:#5b4d30;color:#f0d28b}
+html[data-mode="dark"] .xp-pill small,html[data-mode="dark"] .level-mini{color:#d2bc87}
+html[data-mode="dark"] .progress-track,html[data-mode="dark"] .level-track{background:#37433c}
+html[data-mode="dark"] .muted-copy,html[data-mode="dark"] .form-hint,html[data-mode="dark"] .page-subtitle,html[data-mode="dark"] .criteria,html[data-mode="dark"] .slot-tag,html[data-mode="dark"] .reserve-tag{color:#a4b1aa}
+html[data-mode="dark"] .habit-day-cell.h0{background:#303934;color:#bcc7c0}
+html[data-mode="dark"] .habit-day-cell.h1{background:#46523c}
+html[data-mode="dark"] .habit-day-cell.h50{background:#416c50}
+html[data-mode="dark"] .habit-day-cell.h100{background:#39855a}
+html[data-mode="dark"] .week-calendar-viewport{scrollbar-color:#52645a #222b26}
+html[data-mode="dark"] .modal-backdrop{background:rgba(0,0,0,.72)}
+.reserve-list{display:grid;gap:10px}.reserve-row{display:grid;grid-template-columns:22px 34px minmax(0,1fr);align-items:center;gap:6px}.reserve-row .action-card{margin:0;min-width:0}.reserve-grip{color:var(--muted);cursor:grab;text-align:center;touch-action:none}.reserve-position{display:grid;gap:4px}.reserve-position .icon-button{width:30px;height:30px;font-size:15px}.reserve-row.is-dragging{opacity:.45}.reserve-row.is-drop-target{outline:2px dashed var(--gold);outline-offset:3px;border-radius:18px}.objective-step{margin:12px 0;padding:13px;border:1px solid var(--line);border-radius:16px;background:var(--white)}.objective-step-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.objective-step-heading h3{margin:0}.objective-step-heading small{font:600 10px system-ui;color:var(--muted)}.history-habit-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-habit-row small{min-width:0}.history-habit-row button{flex:none}
+@media(max-width:420px){.reserve-row{grid-template-columns:18px 28px minmax(0,1fr);gap:4px}.reserve-position .icon-button{width:26px;height:26px}}
+.dashboard-checkin .moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px}.dashboard-checkin .mood-choice{width:auto;height:auto;min-height:55px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:18px;padding:3px 1px}.dashboard-checkin .mood-choice small{font-size:7px;line-height:1.12;white-space:normal;color:var(--muted);font-weight:600}

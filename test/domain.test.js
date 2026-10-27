@@ -22,6 +22,17 @@ test("split and abandoned parent actions do not inflate the stone denominator", 
   assert.deepEqual(stoneProgress(state, "s"), { done: 1, total: 2, percent: 50 });
 });
 
+test("objective progress includes actions linked through its steps", () => {
+  const state = createInitialState();
+  state.steps = [{ id: "step-1", stoneId: "s", title: "Préparer" }];
+  state.actions = [
+    { id: "direct", stoneId: "s", status: "done" },
+    { id: "step-done", stepId: "step-1", status: "done" },
+    { id: "step-reserve", stepId: "step-1", status: "reserve" }
+  ];
+  assert.deepEqual(stoneProgress(state, "s"), { done: 2, total: 3, percent: 67 });
+});
+
 test("XP events are idempotent and levels advance every 100 XP", () => {
   const state = createInitialState();
   assert.equal(addXP(state, 20, "action", "a1"), true);

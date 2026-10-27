@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createInitialState, normalizeState } from "../src/data.js";
-import { createChallenge, dateShift, expireChallenges, markCapsuleWatched, markChallengeDay, monthGrid, toggleHabit } from "../src/engagement.js";
+import { createInitialState, normalizeState, todayISO } from "../src/data.js";
+import { canEditHabitHistory, createChallenge, dateShift, expireChallenges, markCapsuleWatched, markChallengeDay, monthGrid, toggleHabit, toggleHabitHistory } from "../src/engagement.js";
 
 test("V1 data upgrades without dropping existing profile or gains", () => {
   const old = { schemaVersion: 1, profile: { vision: "Avancer" }, stones: [], actions: [], xp: { total: 12, events: [] } };
@@ -11,7 +11,7 @@ test("V1 data upgrades without dropping existing profile or gains", () => {
   assert.deepEqual(state.habits, []);
   assert.deepEqual(state.habitLogs, {});
   assert.equal(state.preferences.theme, "forest");
-  assert.equal(state.schemaVersion, 3);
+  assert.equal(state.schemaVersion, 4);
 });
 
 test("habit checks award XP once and the seventh Grand Chelem doubles its bonus", () => {
@@ -28,6 +28,23 @@ test("habit checks award XP once and the seventh Grand Chelem doubles its bonus"
   const repeated = toggleHabit(state, "a", "2026-10-07");
   assert.equal(repeated.rewards.length, 0);
   assert.equal(state.xp.total, 101);
+});
+
+test("habit history editing unlocks after a personal 10-day streak and awards no XP", () => {
+  const state = createInitialState();
+  const today = todayISO();
+  const start = dateShift(today, -10);
+  state.habits = [{ id: "habit", title: "Marcher", createdAtDate: dateShift(today, -30), active: true }];
+  state.habits.push({ id: "locked", title: "Lire", createdAtDate: dateShift(today, -30), active: true });
+  for (let offset = -10; offset < 0; offset += 1) state.habitLogs[dateShift(today, offset)] = { habit: true };
+  assert.equal(canEditHabitHistory(state, "habit"), true);
+  assert.equal(canEditHabitHistory(state, "locked"), false);
+  const date = dateShift(start, -1);
+  const added = toggleHabitHistory(state, "habit", date);
+  assert.equal(added.changed, true);
+  assert.equal(added.completed, true);
+  assert.equal(state.xp.total, 0);
+  assert.equal(toggleHabitHistory(state, "locked", date).locked, true);
 });
 
 test("a linked habit doubles its daily point and the one-time Grand Chelem bonus", () => {

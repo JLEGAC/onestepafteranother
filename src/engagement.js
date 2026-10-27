@@ -59,6 +59,10 @@ export function bestHabitStreak(state, habitId) {
   return best;
 }
 
+export function canEditHabitHistory(state, habitId) {
+  return bestHabitStreak(state, habitId) >= 10;
+}
+
 export function toggleHabit(state, habitId, date = todayISO()) {
   const habit = state.habits.find(item => item.id === habitId && item.active !== false);
   if (!habit) return { changed: false, completed: false, rewards: [] };
@@ -88,6 +92,19 @@ export function toggleHabit(state, habitId, date = todayISO()) {
     if (addXP(state, bonus, "habit-grand-slam", date)) rewards.push({ amount: bonus, label: "Grand Chelem" });
   }
   return { changed: true, completed: true, summary, rewards };
+}
+
+export function toggleHabitHistory(state, habitId, date) {
+  if (!date || date >= todayISO() || !canEditHabitHistory(state, habitId)) return { changed: false, completed: false, rewards: [], locked: true };
+  const habit = state.habits.find(item => item.id === habitId && item.active !== false);
+  if (!habit) return { changed: false, completed: false, rewards: [] };
+  const created = habit.createdAtDate || habit.createdAt?.slice(0, 10) || "0000-00-00";
+  if (date < created) return { changed: false, completed: false, rewards: [], locked: true };
+  state.habitLogs[date] ||= {};
+  const completed = !state.habitLogs[date][habitId];
+  if (completed) state.habitLogs[date][habitId] = true;
+  else delete state.habitLogs[date][habitId];
+  return { changed: true, completed, rewards: [] };
 }
 
 export function createChallenge(state, fields) {

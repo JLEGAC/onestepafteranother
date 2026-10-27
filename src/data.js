@@ -1,5 +1,5 @@
 const DB_NAME = "un-pas-apres-lautre";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STATE_KEY = "workspace";
 
 export function mondayISO(date = new Date()) {
@@ -27,10 +27,11 @@ export function newId(prefix = "id") {
 export function createInitialState() {
   const weekStart = mondayISO();
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     createdAt: new Date().toISOString(),
     profile: { vision: "", story: "", essentials: [], guides: [], resonance: [], resonanceImages: [] },
     stones: [],
+    steps: [],
     actions: [],
     weeks: [{ id: weekStart, start: weekStart, end: weekEndISO(weekStart), retro: null, objective: "" }],
     daily: {},
@@ -39,7 +40,8 @@ export function createInitialState() {
     challenges: [],
     capsules: [],
     xp: { total: 0, events: [] },
-    preferences: { sound: false, reducedMotion: false, gentleReminders: true, theme: "forest" },
+    preferences: { sound: false, reducedMotion: false, gentleReminders: true, theme: "forest", darkMode: false },
+    reserveOrder: [],
     tools: []
   };
 }
@@ -93,22 +95,32 @@ export async function saveState(state) {
 export function normalizeState(input) {
   const base = createInitialState();
   const state = { ...base, ...input, profile: { ...base.profile, ...(input.profile || {}) }, xp: { ...base.xp, ...(input.xp || {}) } };
-  state.stones = Array.isArray(input.stones) ? input.stones : [];
+  state.stones = (Array.isArray(input.stones) ? input.stones : []).map(stone => {
+    const title = String(stone.title || "");
+    const leadingEmoji = title.match(/^\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*/u)?.[0];
+    return leadingEmoji ? { ...stone, title: title.slice(leadingEmoji.length).trimStart(), icon: leadingEmoji } : { ...stone, icon: stone.icon || "🎯" };
+  });
+  state.steps = Array.isArray(input.steps) ? input.steps : [];
   state.actions = Array.isArray(input.actions) ? input.actions : [];
   state.weeks = Array.isArray(input.weeks) && input.weeks.length ? input.weeks : base.weeks;
   state.daily = input.daily && typeof input.daily === "object" ? input.daily : {};
+  const legacyMood = { "😣": "🌪️", "😔": "🌩️", "😴": "🌦️", "🙂": "🌤️", "😄": "🌞", "🥰": "🌞" };
+  for (const day of Object.values(state.daily)) if (legacyMood[day?.mood]) day.mood = legacyMood[day.mood];
   state.habits = Array.isArray(input.habits) ? input.habits : [];
   state.habitLogs = input.habitLogs && typeof input.habitLogs === "object" ? input.habitLogs : {};
   state.challenges = Array.isArray(input.challenges) ? input.challenges : [];
   state.capsules = Array.isArray(input.capsules) ? input.capsules : [];
   state.tools = Array.isArray(input.tools) ? input.tools : [];
   state.preferences = { ...base.preferences, ...(input.preferences || {}) };
+  state.reserveOrder = Array.isArray(input.reserveOrder) ? input.reserveOrder : [];
+  const stepIds = new Set(state.steps.map(step => step.id));
+  state.actions = state.actions.map(action => action.stepId && !stepIds.has(action.stepId) ? { ...action, stepId: "" } : action);
   state.xp.events = Array.isArray(state.xp.events) ? state.xp.events : [];
   state.profile.essentials = Array.isArray(state.profile.essentials) ? state.profile.essentials : [];
   state.profile.guides = Array.isArray(state.profile.guides) ? state.profile.guides : [];
   state.profile.resonance = Array.isArray(state.profile.resonance) ? state.profile.resonance : [];
   state.profile.resonanceImages = Array.isArray(state.profile.resonanceImages) ? state.profile.resonanceImages : [];
-  state.schemaVersion = 3;
+  state.schemaVersion = 4;
   return state;
 }
 
@@ -124,14 +136,15 @@ export function getCurrentWeek(state) {
 }
 
 export function stoneProgress(state, stoneId) {
-  const items = state.actions.filter(item => item.stoneId === stoneId && item.status !== "abandoned" && item.status !== "split");
+  const stepIds = new Set((state.steps || []).filter(step => step.stoneId === stoneId).map(step => step.id));
+  const items = state.actions.filter(item => (item.stoneId === stoneId || stepIds.has(item.stepId)) && item.status !== "abandoned" && item.status !== "split");
   if (!items.length) return { done: 0, total: 0, percent: 0 };
   const done = items.filter(item => item.status === "done").length;
   return { done, total: items.length, percent: Math.round((done / items.length) * 100) };
 }
 
 export function exportObject(state) {
-  return { app: "un-pas-apres-lautre", exportVersion: 3, exportedAt: new Date().toISOString(), data: state };
+  return { app: "un-pas-apres-lautre", exportVersion: 4, exportedAt: new Date().toISOString(), data: state };
 }
 
 export function validateImport(parsed) {
@@ -141,7 +154,7 @@ export function validateImport(parsed) {
   if (!Array.isArray(parsed.data.stones) || !Array.isArray(parsed.data.actions)) {
     throw new Error("La sauvegarde est incomplète : objectifs ou actions manquants.");
   }
-  if (parsed.exportVersion !== undefined && ![1, 2, 3].includes(parsed.exportVersion)) {
+  if (parsed.exportVersion !== undefined && ![1, 2, 3, 4].includes(parsed.exportVersion)) {
     throw new Error("Cette sauvegarde provient d’une version plus récente de l’application.");
   }
   return normalizeState(parsed.data);

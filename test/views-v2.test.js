@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createInitialState, getCurrentWeek } from "../src/data.js";
-import { appShell, renderPage, retroForm, scheduleActionForm, weeklyObjectiveForm, visionForm } from "../src/views.js";
+import { actionForm, appShell, renderPage, retroForm, scheduleActionForm, stoneForm, weeklyObjectiveForm, visionForm } from "../src/views.js";
 import { habitForm } from "../src/engagement-views.js";
 
 test("V2 navigation targets render their page titles and primary actions", () => {
@@ -102,7 +102,7 @@ test("Vision has resonance images; weekly cap, history, and accessible planning 
   assert.equal(weeklyPage.includes("Midi"), false);
   assert.equal(weeklyPage.includes("Après-midi"), false);
   assert.equal(weeklyPage.includes("Soir"), false);
-  assert.ok(weeklyPage.includes('data-date="2026-10-12" data-slot=""'));
+  assert.ok(weeklyPage.includes(`data-date="${week.start}" data-slot=""`));
 });
 
 test("weekly review safely renders structured victories", () => {
@@ -112,4 +112,22 @@ test("weekly review safely renders structured victories", () => {
   const html = retroForm(state, week.id);
   assert.ok(html.includes("J’ai avancé"));
   assert.equal(html.includes("[object Object]"), false);
+});
+
+test("latest interface choices keep objective symbol in its title and clean page headings", () => {
+  const state = createInitialState();
+  state.stones.push({ id: "goal", icon: "🏃", title: "Courir un 10 km" });
+  state.steps.push({ id: "step", stoneId: "goal", title: "Préparation" });
+  const form = stoneForm(state.stones[0]);
+  assert.ok(form.includes('name="title"'));
+  assert.equal(form.includes('name="icon"'), false);
+  assert.ok(form.includes('name="due" type="date"'));
+  assert.ok(form.includes("Bénéfice"));
+  assert.ok(actionForm(state, null, "goal", "step").includes('value="step" selected'));
+  const tools = renderPage(state, "tools");
+  for (const removed of ["TES RESSOURCES", "Un petit coup de pouce", "OUTILS MINUTE", "MES RESSOURCES V2"]) assert.equal(tools.includes(removed), false);
+  const week = renderPage(state, "week");
+  assert.equal(week.includes("Mon planning hebdomadaire"), false);
+  assert.equal(week.includes("🧭 Cap Hebdo"), false);
+  assert.ok(renderPage(state, "profile").includes('data-setting="darkMode"'));
 });

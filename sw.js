@@ -1,4 +1,4 @@
-const CACHE = "un-pas-apres-lautre-v3";
+const CACHE = "un-pas-apres-lautre-v4";
 const CORE = ["./", "./index.html", "./styles.css", "./manifest.json", "./icon.svg", "./logo.svg", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png", "./src/app.js", "./src/data.js", "./src/views.js", "./src/gamification.js", "./src/engagement.js", "./src/engagement-views.js", "./src/planning.js"];
 
 self.addEventListener("install", event => {
