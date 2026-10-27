@@ -30,10 +30,23 @@ jobs:
       - name: Configurer GitHub Pages
         uses: actions/configure-pages@v6
 
+      - name: Vérifier la PWA
+        run: npm run check && npm test
+
+      - name: Produire les captures et préparer le site
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+          python3 -m http.server 8765 > /tmp/pasapas-http.log 2>&1 &
+          node scripts/screenshots.cjs
+          mkdir -p _site
+          cp index.html styles.css manifest.json sw.js *.svg *.png _site/
+          cp -r src screenshots _site/
+
       - name: Préparer les fichiers statiques
         uses: actions/upload-pages-artifact@v5
         with:
-          path: .
+          path: _site
 
       - name: Publier le site
         id: deployment
