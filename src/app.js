@@ -358,7 +358,7 @@ async function handleHabitToggle(id) {
 
 async function handleHabitHistoryToggle(id, date) {
   const result = toggleHabitHistory(state, id, date);
-  if (result.locked) return toast("L’historique de cette habitude se débloque après 10 jours consécutifs de suivi.", "🔒");
+  if (result.locked) return toast("Seules les dates passées peuvent être corrigées.", "📅");
   if (!result.changed) return;
   await persist(); render();
   toast(result.completed ? "Habitude ajoutée à cette date passée. Aucun XP n’est recalculé." : "Validation historique retirée.", "🌱");

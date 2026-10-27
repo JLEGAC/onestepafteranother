@@ -1,5 +1,5 @@
 import { badgesFor, themeRewards, levelFor } from "./gamification.js";
-import { activeHabits, canEditHabitHistory, dateShift, habitDaySummary, habitStreak, isHabitDone, monthGrid, isoFromMonthDay, challengeProgress } from "./engagement.js";
+import { activeHabits, dateShift, habitDaySummary, habitStreak, isHabitDone, monthGrid, isoFromMonthDay, challengeProgress } from "./engagement.js";
 import { mondayISO, todayISO } from "./data.js";
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
@@ -43,7 +43,11 @@ export function renderHabitsPage(state) {
   const streak = currentHabit ? habitStreak(state, currentHabit.id) : 0;
   const totalPoints = state.xp.events.filter(item => ["habit", "habit-grand-slam", "habit-streak"].includes(item.reason)).reduce((sum, item) => sum + item.amount, 0);
   const selectedSummary = habitDaySummary(state, selectedHabitDate);
-  const selectedHabits = currentHabit ? [currentHabit] : habits;
+  const selectedHabits = (currentHabit ? [currentHabit] : habits).filter(habit => {
+    const created = habit.createdAtDate || habit.createdAt?.slice(0, 10) || "0000-00-00";
+    const archived = habit.archivedAt || "9999-99-99";
+    return created <= selectedHabitDate && selectedHabitDate <= archived;
+  });
   const dateEvents = state.xp.events.filter(item => item.reason === "habit" && item.key.endsWith(`:${selectedHabitDate}`));
   const basePoints = dateEvents.reduce((sum, item) => sum + item.amount, 0);
   const streakBonus = state.xp.events.filter(item => item.reason === "habit-streak" && item.key.split(":").at(-2) === selectedHabitDate).reduce((sum, item) => sum + item.amount, 0);
@@ -60,10 +64,10 @@ export function renderHabitsPage(state) {
       <div class="habit-legend"><span><i class="h0"></i> Vide</span><span><i class="h1"></i> Quelques habitudes</span><span><i class="h50"></i> ≥ 50 %</span><span><i class="h100"></i> 100 %</span></div>
       <div class="habit-day-detail"><b>Détail du ${esc(detailDate)}</b><span>Habitudes : ${currentHabit ? (isHabitDone(state, currentHabit.id, selectedHabitDate) ? "1/1" : "0/1") : `${selectedSummary.done}/${selectedSummary.total}`} (${currentHabit ? (isHabitDone(state, currentHabit.id, selectedHabitDate) ? "100" : "0") : selectedSummary.percent} %)</span>${selectedHabits.map(habit => {
         const done = isHabitDone(state, habit.id, selectedHabitDate);
-        if (selectedHabitDate < todayISO()) return `<div class="history-habit-row"><small>${done ? "✓" : "○"} ${esc(habit.title)}</small><button type="button" class="button button-small ${done ? "button-complete" : "button-outline"}" data-action="toggle-habit-history" data-id="${esc(habit.id)}" data-date="${esc(selectedHabitDate)}" ${!done && !canEditHabitHistory(state, habit.id) ? "disabled title='Débloqué après 10 jours consécutifs pour cette habitude'" : ""}>${done ? "Retirer" : canEditHabitHistory(state, habit.id) ? "Ajouter" : "🔒 10 jours"}</button></div>`;
+        if (selectedHabitDate < todayISO()) return `<div class="history-habit-row"><small>${done ? "✓" : "○"} ${esc(habit.title)}</small><button type="button" class="button button-small ${done ? "button-complete" : "button-outline"}" data-action="toggle-habit-history" data-id="${esc(habit.id)}" data-date="${esc(selectedHabitDate)}">${done ? "Retirer" : "Ajouter"}</button></div>`;
         return `<small>${done ? "✓" : "○"} ${esc(habit.title)}</small>`;
       }).join("") || `<small>Aucune habitude active à cette date.</small>`}<span>Points des habitudes : +${basePoints} XP</span>${grandSlam ? `<span>Bonus Grand Chelem : +${grandSlam.amount} XP</span>` : ""}${streakBonus ? `<span>Bonus de série : +${streakBonus} XP</span>` : ""}</div>
-      ${currentHabit ? `<div class="habit-streak-card"><div><span>🔥</span><b>${streak} jour${streak > 1 ? "s" : ""} de suite</b></div><p>${filteredLogs} jours cochés dans l’historique · ${totalPoints} XP gagnés avec tes habitudes</p><small>Le x2 s’applique aux habitudes liées à un objectif. Bonus de série : +30 XP au 21e jour, +60 XP au 60e.</small></div>` : `<p class="form-hint">Après 10 jours consécutifs pour une habitude, tu peux compléter son historique passé. Les validations historiques ne rapportent pas de XP.</p>`}
+      ${currentHabit ? `<div class="habit-streak-card"><div><span>🔥</span><b>${streak} jour${streak > 1 ? "s" : ""} de suite</b></div><p>${filteredLogs} jours cochés dans l’historique · ${totalPoints} XP gagnés avec tes habitudes</p><small>Le x2 s’applique aux habitudes liées à un objectif. Bonus de série : +30 XP au 21e jour, +60 XP au 60e.</small></div>` : `<p class="form-hint">Tu peux compléter ou corriger librement l’historique de tes habitudes. Les validations passées ne rapportent pas de XP.</p>`}
     </section>
     <button class="button button-outline wide" data-page="cible">← Retour à mes objectifs et habitudes</button>`;
 }

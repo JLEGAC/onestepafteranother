@@ -5,8 +5,8 @@ La V2 conserve le périmètre et les principes de la [V1](SPEC_V1.md), puis ajou
 ## Habitudes
 
 - Ajouter, modifier et archiver des habitudes ; l’archivage conserve le journal passé.
-- Cocher une habitude pour la date du jour, consulter le calendrier mensuel et filtrer par habitude ou par jour.
-- Après 10 jours consécutifs de suivi d’une habitude, compléter son historique passé. Une correction historique ne recalcule pas les XP.
+- Cocher une habitude pour la date du jour, corriger librement les dates passées depuis sa création, consulter le calendrier mensuel et filtrer par habitude ou par jour.
+- Une correction historique ne recalcule pas les XP. Le mécanisme de suivi sur 10 jours consécutifs est reporté à une phase ultérieure.
 - Voir les séries individuelles et les journées où toutes les habitudes actives ont été réalisées (Grand Chelem).
 - Une validation rapporte 1 XP, une seule fois par habitude et par date. Pour une habitude liée à un objectif, ce point est doublé.
 - Le Grand Chelem rapporte 10 XP ; après sept jours de Grand Chelem consécutifs, son bonus passe à 20 XP. Ce bonus est doublé une fois si au moins une habitude liée à un objectif participe au Grand Chelem.
@@ -37,7 +37,7 @@ La V2 conserve le périmètre et les principes de la [V1](SPEC_V1.md), puis ajou
 ## Écrans et navigation
 
 - La barre principale donne accès à Accueil, Vision, Objectifs, Cap Hebdo, Outils et Réserve. Le logo fourni apparaît dans l’en-tête ; XP, profil et calendrier d’historique restent accessibles en haut.
-- L’accueil présente la batterie et l’humeur côte à côte, la phrase de Vision, les habitudes avec les sept jours de la semaine, les actions du jour et les victoires. Une victoire peut être reliée à un objectif ou à une action.
+- L’accueil présente la batterie et l’humeur côte à côte, avec les sélecteurs alignés et leurs légendes accessibles à la demande, puis la phrase de Vision, les habitudes avec les sept jours de la semaine, les actions du jour et les victoires. Une victoire peut être reliée à un objectif ou à une action.
 - L’humeur utilise cinq niveaux météo : « Rien ne va », « C’est très compliqué », « C’est dur mais y’a du positif », « Les émotions sont équilibrées » et « Ça va à merveille, je me sens au top ! ».
 - Objectifs réunit les habitudes et les objectifs. Les habitudes liées à un objectif portent une étoile ; leurs séries affichent « Premier jour », « Deuxième jour » ou « Série de X jours ». Le champ « Déclencheur » remplace « Repère ou intention ».
 - Un objectif contient des étapes et des actions. Une action peut être liée directement à l’objectif ou à une étape ; la progression compte toutes les actions, y compris celles en Réserve. L’emoji initial du titre sert d’icône, sans champ de symbole distinct. Le formulaire utilise « Bénéfice » et une date d’échéance.

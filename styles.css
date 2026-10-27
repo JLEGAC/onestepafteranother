@@ -98,3 +98,18 @@ html[data-mode="dark"] .modal-backdrop{background:rgba(0,0,0,.72)}
 .reserve-list{display:grid;gap:10px}.reserve-row{display:grid;grid-template-columns:22px 34px minmax(0,1fr);align-items:center;gap:6px}.reserve-row .action-card{margin:0;min-width:0}.reserve-grip{color:var(--muted);cursor:grab;text-align:center;touch-action:none}.reserve-position{display:grid;gap:4px}.reserve-position .icon-button{width:30px;height:30px;font-size:15px}.reserve-row.is-dragging{opacity:.45}.reserve-row.is-drop-target{outline:2px dashed var(--gold);outline-offset:3px;border-radius:18px}.objective-step{margin:12px 0;padding:13px;border:1px solid var(--line);border-radius:16px;background:var(--white)}.objective-step-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.objective-step-heading h3{margin:0}.objective-step-heading small{font:600 10px system-ui;color:var(--muted)}.history-habit-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.history-habit-row small{min-width:0}.history-habit-row button{flex:none}
 @media(max-width:420px){.reserve-row{grid-template-columns:18px 28px minmax(0,1fr);gap:4px}.reserve-position .icon-button{width:26px;height:26px}}
 .dashboard-checkin .moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px}.dashboard-checkin .mood-choice{width:auto;height:auto;min-height:55px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:18px;padding:3px 1px}.dashboard-checkin .mood-choice small{font-size:7px;line-height:1.12;white-space:normal;color:var(--muted);font-weight:600}
+
+/* Alignement des contrôles Batterie et Humeur, avec légendes à la demande. */
+.dashboard-checkin-block{position:relative;display:flex;flex-direction:column;justify-content:flex-start}
+.checkin-heading{position:relative;display:flex;align-items:center;justify-content:center;min-height:28px;margin-bottom:8px}
+.dashboard-checkin .checkin-heading h2{margin:0}
+.checkin-help{position:absolute;right:0;top:0;z-index:2}
+.checkin-help>summary{display:grid;place-items:center;list-style:none;width:28px;height:28px;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--muted);font-size:13px;cursor:pointer;user-select:none}
+.checkin-help>summary::-webkit-details-marker{display:none}
+.checkin-legend{position:absolute;top:calc(100% + 6px);right:0;display:grid;gap:7px;width:max-content;max-width:min(240px,calc(100vw - 48px));padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--white);color:var(--ink);box-shadow:var(--shadow);font-size:10px;line-height:1.35}
+.checkin-legend span{display:flex;align-items:center;gap:6px}
+.checkin-legend b{min-width:30px}
+.dashboard-checkin .energy-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;align-items:stretch}
+.dashboard-checkin .energy-choice{min-width:0;min-height:55px;padding:6px 2px;display:grid;place-items:center}
+.dashboard-checkin .moods{flex:1;align-items:stretch}
+.dashboard-checkin .mood-choice{min-width:0;min-height:55px;padding:3px 1px}

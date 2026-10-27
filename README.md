@@ -17,11 +17,12 @@ Ouvre ensuite `http://localhost:4173`. Le service worker et l’installation PWA
 - Les données sont enregistrées localement dans IndexedDB ; aucun compte ou serveur n’est utilisé.
 - Une sauvegarde JSON peut être exportée depuis **Profil** puis importée sur un autre appareil.
 - L’import remplace les données locales après un aperçu et une confirmation.
-- Le service worker met en cache les fichiers de l’application pour permettre son ouverture hors ligne.
+- Le service worker vérifie les ressources sur le réseau et les met à jour dans le cache ; hors connexion, il réutilise les ressources disponibles et affiche l’application pour les navigations.
+- Les icônes PWA PNG ont un fond transparent, avec des variantes distinctes pour les usages standards et maskable.
 
 ## Nouveautés V2
 
-- Suivi d’habitudes par calendrier mensuel, vue globale ou par habitude, séries et détail journalier.
+- Suivi d’habitudes par calendrier mensuel, vue globale ou par habitude, séries et détail journalier ; les dates passées sont modifiables dès la création de l’habitude, sans XP rétroactif.
 - Défis personnels sur sept jours : un défi actif à la fois, progression par jour, sans retrait de points.
 - Collection de capsules vidéo ajoutées par la personne, avec filtres par besoin. La lecture des liens HTTPS demande une connexion.
 - Badges de progression et ambiances visuelles déverrouillées à certains niveaux.
@@ -30,7 +31,7 @@ Ouvre ensuite `http://localhost:4173`. Le service worker et l’installation PWA
 - Habitude validée : +1 XP. Grand Chelem quotidien : +10 XP, doublés après 7 jours de Grand Chelem consécutifs.
 - Jour de défi validé : +3 XP ; objectif atteint : +15 XP. Capsule marquée comme vue : +3 XP.
 - Les XP V1 déjà enregistrés restent inchangés. La base locale et les sauvegardes V1 sont migrées à la lecture/import.
-- Le tableau de bord réunit batterie, humeur, habitudes de la semaine, actions du jour et victoires.
+- Le tableau de bord réunit batterie, humeur, habitudes de la semaine, actions du jour et victoires. Les sélecteurs Batterie et Humeur sont alignés ; leurs légendes s’ouvrent à la demande.
 - « Objectifs » rassemble habitudes et objectifs ; « Cap Hebdo » affiche le cap et le planning défilant de la semaine ; « Réserve » liste les actions mises de côté.
 - La Vision est accessible directement, conserve « Ce qui résonne » et accepte des images locales.
 - L’historique permet de consulter les journées passées ; les victoires ont aussi leur page dédiée.

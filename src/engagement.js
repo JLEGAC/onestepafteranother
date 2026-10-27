@@ -59,10 +59,6 @@ export function bestHabitStreak(state, habitId) {
   return best;
 }
 
-export function canEditHabitHistory(state, habitId) {
-  return bestHabitStreak(state, habitId) >= 10;
-}
-
 export function toggleHabit(state, habitId, date = todayISO()) {
   const habit = state.habits.find(item => item.id === habitId && item.active !== false);
   if (!habit) return { changed: false, completed: false, rewards: [] };
@@ -95,7 +91,7 @@ export function toggleHabit(state, habitId, date = todayISO()) {
 }
 
 export function toggleHabitHistory(state, habitId, date) {
-  if (!date || date >= todayISO() || !canEditHabitHistory(state, habitId)) return { changed: false, completed: false, rewards: [], locked: true };
+  if (!date || date >= todayISO()) return { changed: false, completed: false, rewards: [], locked: true };
   const habit = state.habits.find(item => item.id === habitId && item.active !== false);
   if (!habit) return { changed: false, completed: false, rewards: [] };
   const created = habit.createdAtDate || habit.createdAt?.slice(0, 10) || "0000-00-00";

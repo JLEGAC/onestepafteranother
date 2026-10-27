@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createInitialState, getCurrentWeek } from "../src/data.js";
+import { createInitialState, getCurrentWeek, todayISO } from "../src/data.js";
 import { actionForm, appShell, renderPage, retroForm, scheduleActionForm, stoneForm, weeklyObjectiveForm, visionForm } from "../src/views.js";
-import { habitForm } from "../src/engagement-views.js";
+import { habitForm, renderHabitsPage, selectHabitDate, selectHabitFilter } from "../src/engagement-views.js";
+import { dateShift } from "../src/engagement.js";
 
 test("V2 navigation targets render their page titles and primary actions", () => {
   const state = createInitialState();
@@ -45,6 +46,34 @@ test("new navigation and dashboard follow the requested screen order", () => {
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
   assert.ok(home.includes("De quoi es-tu fier·e aujourd’hui ?"));
   assert.ok(home.includes("Cette victoire te permettra-t-elle d’atteindre l’un de tes objectifs ?"));
+});
+
+test("dashboard hides check-in captions behind accessible legends and aligns the choice rows", () => {
+  const home = renderPage(createInitialState(), "home");
+  assert.equal((home.match(/data-energy="/g) || []).length, 4);
+  assert.equal((home.match(/data-mood="/g) || []).length, 5);
+  assert.ok(home.includes("<b>25%</b> Énergie basse"));
+  assert.ok(home.includes("<b>50%</b> Énergie moyenne"));
+  assert.ok(home.includes("<b>75%</b> Énergie haute"));
+  assert.ok(home.includes("<b>100%</b> Énergie pleine"));
+  assert.ok(home.includes('aria-label="Afficher la légende de la batterie"'));
+  assert.ok(home.includes('aria-label="Afficher la légende de l’humeur"'));
+  assert.equal(home.includes("<small>Rien ne va</small>"), false);
+  assert.equal(home.includes('class="checkin-heading"'), true);
+});
+
+test("past habit controls are available without a 10-day unlock", () => {
+  const state = createInitialState();
+  state.habits.push({ id: "past-check", title: "Marcher", createdAtDate: dateShift(todayISO(), -20), active: true });
+  selectHabitFilter("past-check");
+  selectHabitDate(dateShift(todayISO(), -1));
+  const html = renderHabitsPage(state);
+  assert.ok(html.includes('data-action="toggle-habit-history"'));
+  assert.ok(html.includes(">Ajouter</button>"));
+  assert.equal(html.includes("🔒 10 jours"), false);
+  assert.equal(html.includes("Après 10 jours"), false);
+  selectHabitFilter("");
+  selectHabitDate(todayISO());
 });
 
 test("Objectives page combines habits and objectives and hides the admin helper once the goal exists", () => {
