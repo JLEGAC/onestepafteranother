@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - .github/workflows/deploy.yml
   workflow_dispatch:
 
 permissions:
@@ -19,7 +17,7 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -38,6 +36,7 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.56.1
           npx playwright install --with-deps chromium
           python3 -m http.server 8765 > /tmp/pasapas-http.log 2>&1 &
+          curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8765/ > /dev/null
           node scripts/screenshots.cjs
           mkdir -p _site
           cp index.html styles.css manifest.json sw.js *.svg *.png _site/
