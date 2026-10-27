@@ -777,3 +777,17 @@ window.addEventListener("appinstalled", () => { installPrompt = null; render(); 
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("./sw.js").catch(error => console.warn("Service worker non disponible", error));
 render();
 addOnboarding();
+
+// Les relancements et raccourcis réutilisent la fenêtre sans perdre les saisies.
+if ("launchQueue" in window) {
+  window.launchQueue.setConsumer(({ targetURL }) => {
+    if (!targetURL) return;
+    const target = new URL(targetURL);
+    const next = target.hash.slice(1) || "home";
+    if (!["home", "habits", "week", "vision", "wins"].includes(next) || next === page) return;
+    const hasDraft = modalRoot.children.length > 0 || [...document.querySelectorAll("input,textarea")].some(el => el.value !== el.defaultValue);
+    if (hasDraft && !confirm("Ouvrir cette page et quitter la saisie en cours ?")) return;
+    closeModal();
+    navigate(next);
+  });
+}

@@ -42,3 +42,15 @@ Ouvre ensuite `http://localhost:4173`. Le service worker et l’installation PWA
 ## Mise à jour GitHub Pages
 
 La version de l’application est `0.2.0`. Avant de remplacer une installation existante, exporte une sauvegarde depuis **Profil**. Le manifest utilise des chemins relatifs (`./`) pour fonctionner sur le sous-chemin du dépôt GitHub Pages. Après publication, ouvre d’abord la page du projet dans le navigateur pour charger la mise à jour. Si l’ancienne icône installée ouvre une adresse en erreur, retire-la puis réinstalle l’application depuis la page du projet.
+
+
+## Mise à jour du 27 octobre 2026 — intégrations PWA
+- Empreintes conservées : PNG standards transparents, variantes Android maskable opaques sur fond vert foncé #173e36.
+- Quatre raccourcis : habitudes, Cap Hebdo, Vision et victoires.
+- Catégories lifestyle/productivity, lancement réutilisant la fenêtre sur les navigateurs compatibles, avec confirmation avant de quitter une saisie.
+- Le workflow Pages génère deux captures réelles et les ajoute au manifeste déployé. Aucun lien de capture absent n'est déclaré dans le ZIP source.
+- Le site publié contient uniquement les fichiers web, sans sources du compagnon Android.
+- `android-widget/` contient le prototype Android d'accès rapide et ses instructions. Ce n'est pas encore le widget dynamique annoncé : liaison des données, intégration TWA et validation sur téléphone restent à réaliser.
+- Les widgets Windows, la réception de partages dans Réserve et l'association des sauvegardes JSON restent différés.
+
+Vérifications locales : syntaxe JavaScript et 30 tests réussis ; XML Android et fichiers d'icônes vérifiés. Compilation Android non exécutée (SDK/Gradle absents). Capture navigateur locale bloquée par le téléchargement de Chromium ; génération reportée au workflow Pages. Les deux workflows doivent encore être exécutés sur GitHub.

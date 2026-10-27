@@ -1,0 +1,8 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp" android:background="@drawable/background">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Pas à Pas" android:textSize="20sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Un petit pas, quand tu veux." android:textColor="#FFFFFF"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<Button android:id="@+id/today" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Mon jour" android:textAllCaps="false"/>
+<Button android:id="@+id/habits" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Habitudes" android:textAllCaps="false"/>
+<Button android:id="@+id/week" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Cap hebdo" android:textAllCaps="false"/>
+</LinearLayout></LinearLayout>
