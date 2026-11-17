@@ -87,7 +87,7 @@ try {
  version='b';
  await page.evaluate(async()=>{await (await navigator.serviceWorker.ready).update();});
  await page.locator('.update-banner:not([hidden])').waitFor();
- await page.getByRole('button',{name:'Plus tard',exact:true}).click();
+ await page.locator('.update-banner').getByRole('button',{name:'Plus tard',exact:true}).click();
  assert.equal(await page.locator('.update-banner').isVisible(),false);
  // Keep one old-version client alive: otherwise the browser may legitimately
  // activate the waiting worker when the last window closes.
@@ -99,15 +99,15 @@ try {
  // An unsaved input exercises the application's actual draft detector.
  await page.evaluate(()=>{const i=document.createElement('input');i.id='test-draft';i.value='saisie non enregistrée';document.querySelector('#app').append(i);});
  page.once('dialog',d=>d.dismiss());
- await page.getByRole('button',{name:'Mettre à jour',exact:true}).click();
+ await page.locator('.update-banner').getByRole('button',{name:'Mettre à jour',exact:true}).click();
  assert.equal(await page.locator('#test-draft').inputValue(),'saisie non enregistrée');
  await page.locator('#test-draft').evaluate(el=>el.remove());
  const second=await context.newPage();await second.goto(url);await ready(second);
  let alertText='';page.once('dialog',d=>{alertText=d.message();d.accept();});
- await page.getByRole('button',{name:'Mettre à jour',exact:true}).click();
+ await page.locator('.update-banner').getByRole('button',{name:'Mettre à jour',exact:true}).click();
  await page.waitForFunction(()=>!document.querySelector('[data-update]').disabled);
  assert.match(alertText,/autres fenêtres/);await second.close();
- await Promise.all([page.waitForEvent('load'),page.getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
+ await Promise.all([page.waitForEvent('load'),page.locator('.update-banner').getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
  await page.waitForFunction(expected=>document.querySelector('script[type=module]')?.src.includes(expected),next);
  await page.waitForSelector('#cloud-indicator');
  assert.match(await page.locator('#app').innerText(),/Avancer sereinement/);
@@ -137,7 +137,7 @@ try {
   version='b';
   await reopened.evaluate(async()=>{await (await navigator.serviceWorker.ready).update();});
   await reopened.locator('.update-banner:not([hidden])').waitFor();
-  await reopened.getByRole('button',{name:'Plus tard',exact:true}).click();
+  await reopened.locator('.update-banner').getByRole('button',{name:'Plus tard',exact:true}).click();
   mark('DEBUG : fermeture de toutes les fenêtres après Plus tard');
   await reopened.close();
   reopened=await reopening.newPage();await reopened.goto(url);await ready(reopened);
@@ -151,7 +151,7 @@ try {
   console.log('DEBUG : version après réouverture',JSON.stringify({current,currentPath,expected:next}));
   if(!currentPath.includes('/releases/'+next+'/')) {
    mark('DEBUG : version encore en attente, activation explicite');
-   await Promise.all([reopened.waitForEvent('load'),reopened.getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
+   await Promise.all([reopened.waitForEvent('load'),reopened.locator('.update-banner').getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
    await ready(reopened);
   }
   await reopened.waitForFunction(expected=>document.querySelector('script[type=module]')?.src.includes('/releases/'+expected+'/'),next);
