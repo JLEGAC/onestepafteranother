@@ -54,9 +54,13 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET'||url.origin!==self.location.origin||!FILES.length)return;
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
-    if(request.mode==='navigate')return await cache.match(absolute(SHELL)) || new Response('Application indisponible hors connexion.',{status:503});
+    // Only the application entry points use the app shell. Public HTML pages
+    // must resolve to their own versioned resource, including offline.
+    const isAppEntry = url.pathname === new URL(self.registration.scope).pathname || url.pathname === new URL('./index.html', self.registration.scope).pathname;
+    if(request.mode==='navigate' && isAppEntry)return await cache.match(absolute(SHELL)) || new Response('Application indisponible hors connexion.',{status:503});
+    if(request.mode==='navigate')url.search='';
     const alias=FILES.find(f=>f.alias&&absolute(f.alias)===url.href);
-    const found=await cache.match(alias?absolute(alias.url):request);
+    const found=await cache.match(alias?absolute(alias.url):(request.mode==='navigate'?url.href:request));
     if(found)return found;
     if(url.pathname.includes('/releases/')){
       for(const name of await caches.keys()){
