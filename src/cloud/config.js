@@ -1,5 +1,5 @@
 // Public browser configuration only. NEVER put a secret/service_role key here.
 export const cloudConfig = {
-  url: '',
-  publishableKey: ''
+  url: 'https://qmhhhxhwrlhdtfipbdul.supabase.co',
+  publishableKey: 'sb_publishable_Us51kKo1vgcip_CMpmJ3IQ_DbFobnXS'
 };
