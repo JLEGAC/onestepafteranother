@@ -79,7 +79,7 @@ try {
  await page.waitForFunction(()=>!document.querySelector('[data-update]').disabled);
  assert.match(alertText,/autres fenêtres/);await second.close();
  await Promise.all([page.waitForEvent('load'),page.getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
- await page.waitForFunction(expected=>document.querySelector('script[type=module]').src.includes(expected),next);
+ await page.waitForFunction(expected=>document.querySelector('script[type=module]')?.src.includes(expected),next);
  await page.waitForSelector('#cloud-indicator');
  assert.match(await page.locator('#app').innerText(),/Avancer sereinement/);
  console.log('✓ protection de saisie et autres fenêtres ; activation, rechargement, données préservées');
@@ -109,14 +109,14 @@ try {
   await reopened.close();
   reopened=await reopening.newPage();await reopened.goto(url);await ready(reopened);
   await reopened.waitForFunction(expected=>
-   document.querySelector('script[type=module]').src.includes('/releases/'+expected+'/') ||
+   document.querySelector('script[type=module]')?.src.includes('/releases/'+expected+'/') ||
    !!document.querySelector('.update-banner:not([hidden])'),next);
   const current=await reopened.locator('script[type=module]').getAttribute('src');
   if(!current.includes('/releases/'+next+'/')) {
    await Promise.all([reopened.waitForEvent('load'),reopened.getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
    await ready(reopened);
   }
-  await reopened.waitForFunction(expected=>document.querySelector('script[type=module]').src.includes('/releases/'+expected+'/'),next);
+  await reopened.waitForFunction(expected=>document.querySelector('script[type=module]')?.src.includes('/releases/'+expected+'/'),next);
   console.log('✓ fermeture complète après report : version activée ou mise à jour proposée');
  } finally {await reopening.close();}
 
