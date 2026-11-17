@@ -1,49 +1,55 @@
-const CACHE = "un-pas-apres-lautre-v6";
-const CORE = ["./", "./index.html", "./styles.css", "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png", "./icon-192-maskable.png", "./icon-512-maskable.png", "./logo.svg", "./apple-touch-icon.png", "./src/app.js", "./src/data.js", "./src/views.js", "./src/gamification.js", "./src/engagement.js", "./src/engagement-views.js", "./src/planning.js"];
-
-self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)));
-  self.skipWaiting();
+// The production builder replaces this block with immutable release URLs + integrity hashes.
+const RELEASE = 'development';
+const FILES = [];
+const SHELL = './index.html';
+const PREFIX = 'upa-' + new URL(self.registration.scope).pathname.replaceAll('/', '_') + '-release-';
+const versions = new Map();
+async function cleanUnused() {
+  const clients=(await self.clients.matchAll({type:'window',includeUncontrolled:true})).filter(c=>c.url.startsWith(self.registration.scope));
+  if(!clients.length || clients.some(c=>versions.get(c.id)!==RELEASE))return;
+  for(const name of await caches.keys())if(name!==CACHE && (name.startsWith(PREFIX)||name.startsWith('un-pas-apres-lautre-')))await caches.delete(name);
+}
+const CACHE = PREFIX + RELEASE;
+const absolute = path => new URL(path, self.registration.scope).href;
+self.addEventListener('install', event => event.waitUntil((async()=>{
+  if(!FILES.length)return; // Development uses the network; build for offline tests.
+  const cache=await caches.open(CACHE);
+  try {
+    await Promise.all(FILES.map(async file=>{
+      const response=await fetch(new Request(absolute(file.url),{cache:'reload',integrity:file.integrity}));
+      if(!response.ok)throw new Error('Release incomplète');
+      await cache.put(absolute(file.url),response);
+    }));
+  }catch(err){await caches.delete(CACHE);throw err;}
+})()));
+self.addEventListener('message',event=>{
+  if(event.data?.type==='RELEASE_READY') { versions.set(event.source.id,event.data.release);event.waitUntil(cleanUnused());return; }
+  if(event.data?.type!=='ACTIVATE_UPDATE')return;
+  event.waitUntil((async()=>{
+    const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    const own=clients.filter(c=>c.url.startsWith(self.registration.scope));
+    if(own.length>1){event.ports[0]?.postMessage({ok:false});return;}
+    event.ports[0]?.postMessage({ok:true}); await self.skipWaiting();
+  })());
 });
-
-self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(key => key.startsWith("un-pas-apres-lautre-") && key !== CACHE).map(key => caches.delete(key))))
-    .then(() => self.clients.claim()));
-});
-
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
-  event.respondWith((async () => {
-    const cache = await caches.open(CACHE);
-    try {
-      const response = await fetch(event.request);
-      if (!response.ok) {
-        return await cache.match(event.request) || response;
+self.addEventListener('activate',event=>event.waitUntil((async()=>{await self.clients.claim();for(const c of await self.clients.matchAll({type:'window'}))c.postMessage({type:'WHAT_RELEASE'});})()));
+// Keep older release caches: an older open page may still import its own modules.
+// Only this application's caches are examined. User data never lives in these caches.
+self.addEventListener('fetch',event=>{
+  const request=event.request; const url=new URL(request.url);
+  if(request.method!=='GET'||url.origin!==self.location.origin||!FILES.length)return;
+  event.respondWith((async()=>{
+    const cache=await caches.open(CACHE);
+    if(request.mode==='navigate')return await cache.match(absolute(SHELL)) || new Response('Application indisponible hors connexion.',{status:503});
+    const alias=FILES.find(f=>f.alias&&absolute(f.alias)===url.href);
+    const found=await cache.match(alias?absolute(alias.url):request);
+    if(found)return found;
+    if(url.pathname.includes('/releases/')){
+      for(const name of await caches.keys()){
+        if(!name.startsWith(PREFIX)||name===CACHE)continue;
+        const old=await (await caches.open(name)).match(request);if(old)return old;
       }
-      if (response.ok && response.type !== "opaque") {
-        try {
-          await cache.put(event.request, response.clone());
-        } catch {
-          // A cache quota or storage error must not hide a valid network response.
-        }
-      }
-      return response;
-    } catch {
-      const cached = await cache.match(event.request);
-      if (cached) return cached;
-      if (event.request.mode === "navigate") {
-        return await cache.match("./index.html") || new Response("Cette page n’est pas disponible hors connexion.", {
-          status: 503,
-          headers: { "Content-Type": "text/plain; charset=utf-8" }
-        });
-      }
-      return new Response("Cette ressource n’est pas disponible hors connexion.", {
-        status: 503,
-        headers: { "Content-Type": "text/plain; charset=utf-8" }
-      });
     }
+    try{return await fetch(request);}catch{return new Response('Ressource indisponible hors connexion.',{status:503});}
   })());
 });

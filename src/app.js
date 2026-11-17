@@ -5,6 +5,13 @@ import { changeHabitMonth, selectHabitDate, selectHabitFilter, habitForm, challe
 import { createChallenge, expireChallenges, markCapsuleWatched, markChallengeDay, stopChallenge, toggleHabit, toggleHabitHistory } from "./engagement.js";
 import { canPlaceInTimeSlot } from "./planning.js";
 
+import { flushWrites, pendingWrites, scope } from "./local-store.js";
+import { initCloud } from "./cloud/ui.js";
+import { initUpdates } from "./pwa/updates.js";
+let cloudUI;
+const operations = new Set();
+function track(promise) { operations.add(promise); promise.then(()=>operations.delete(promise),()=>operations.delete(promise)); return promise; }
+async function flushAll() { await Promise.all([...operations]); await flushWrites(); }
 let state = await loadState();
 if (expireChallenges(state)) await saveState(state);
 let page = location.hash.slice(1) || "home";
@@ -34,6 +41,7 @@ function render() {
     document.querySelector("#page-content").prepend(banner);
   }
   bindPageInteractions();
+  cloudUI?.draw();
 }
 
 function navigate(next, replace = false) {
@@ -148,7 +156,7 @@ function bindPageInteractions() {
     if (!theme || levelFor(state.xp.total).level < theme.level) return;
     state.preferences.theme = theme.id; await persist(); render(); celebrate(`Ambiance ${theme.name} activée !`);
   }));
-  document.querySelector("#resonance-image-input")?.addEventListener("change", addResonanceImages);
+  document.querySelector("#resonance-image-input")?.addEventListener("change", event => track(addResonanceImages(event)));
   document.querySelector("#weekly-objective-form")?.addEventListener("submit", saveWeeklyObjective);
   bindScheduleDragInteractions();
   document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => {
@@ -758,8 +766,8 @@ async function confirmImport() {
 }
 
 function resetData() {
-  if (!confirm("Cette action effacera toutes tes données de cet appareil. As-tu d’abord exporté une sauvegarde ?")) return;
-  state = createInitialState(); localStorage.removeItem("upa-fallback"); persist().then(() => { render(); closeModal(); navigate("home", true); });
+  if (!confirm("Cette action effacera les données de cet espace et synchronisera cet effacement si tu es connecté. As-tu exporté une sauvegarde ?")) return;
+  state = createInitialState(); persist().then(() => { render(); closeModal(); navigate("home", true); });
 }
 
 function addOnboarding() {
@@ -774,9 +782,24 @@ window.addEventListener("keydown", event => { if (event.key === "Escape") closeM
 window.addEventListener("beforeinstallprompt", event => { event.preventDefault(); installPrompt = event; render(); });
 window.addEventListener("appinstalled", () => { installPrompt = null; render(); toast("Un pas après l’autre est installé sur ton appareil.", "📲"); });
 
-if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("./sw.js").catch(error => console.warn("Service worker non disponible", error));
+function hasDraft() {
+  return [...document.querySelectorAll('#app input, #app textarea, #app select, #modal-root input, #modal-root textarea, #modal-root select')].some(el => {
+    if (el.type === 'checkbox' || el.type === 'radio') return el.checked !== el.defaultChecked;
+    if (el.tagName === 'SELECT') { const defaults=[...el.options].findIndex(o=>o.defaultSelected); return el.selectedIndex !== Math.max(0,defaults) && !el.matches('[data-theme-setting]'); }
+    return el.value !== el.defaultValue;
+  });
+}
+window.addEventListener('upa:save-error', event => alert('Enregistrement local impossible : ' + event.detail.message + ' Exporte une sauvegarde depuis Profil.'));
+window.addEventListener('storage', event => {
+  if (event.key !== 'upa-active-user') return;
+  const veil = document.createElement('div'); veil.className = 'account-veil';
+  veil.innerHTML = '<section><h2>Le compte a changé dans une autre fenêtre</h2><p>Recharge cette fenêtre pour continuer avec le bon compte. Tu peux exporter les données affichées avant de recharger.</p><button class="button" data-copy>Exporter</button><button class="button" data-reload>Recharger</button></section>';
+  veil.querySelector('[data-copy]').onclick=exportData; veil.querySelector('[data-reload]').onclick=()=>location.reload(); document.body.append(veil);
+});
+initUpdates({hasDraft,flush:flushAll});
 render();
-addOnboarding();
+cloudUI=initCloud({flush:flushAll,hasDraft:()=>hasDraft()||pendingWrites()>0||operations.size>0,apply:next=>{state=next;closeModal();render();},openProfile:()=>navigate('profile')});
+if(!scope()) addOnboarding();
 
 // Les relancements et raccourcis réutilisent la fenêtre sans perdre les saisies.
 if ("launchQueue" in window) {

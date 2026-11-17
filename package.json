@@ -1,10 +1,21 @@
 {
   "name": "un-pas-apres-lautre",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/app.js && node --check src/views.js && node --check src/data.js && node --check src/gamification.js && node --check src/engagement.js && node --check src/engagement-views.js && node --check src/planning.js && node --check sw.js",
-    "test": "node --test"
+    "check": "node scripts/check.mjs",
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "test:browser": "node scripts/browser-tests.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16",
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.8",
+    "playwright": "1.65.1"
   }
 }

@@ -1,0 +1,26 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {indexedDB} from 'fake-indexeddb';
+globalThis.indexedDB=indexedDB;globalThis.window=new EventTarget();
+const values=new Map();globalThis.localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,String(v)),removeItem:k=>values.delete(k)};
+const store=await import('../src/local-store.js');
+const {createInitialState}=await import('../src/data.js');
+test('legacy workspace, per-account state, durable dirty flag, in-flight edit, conflict and backups',async()=>{
+ const legacy=createInitialState();legacy.profile.vision='Ma vision';
+ await store.mutateRecord('',()=>({state:legacy}));
+ assert.equal((await store.readWorkspace()).profile.vision,'Ma vision');
+ await store.writeWorkspace(legacy);
+ const guest=await store.readRecord();assert.equal(guest.localRev,1);assert.ok(guest.dirty);
+ store.setScope('user-a');await store.readWorkspace();const a=createInitialState();a.profile.vision='A';await store.writeWorkspace(a);
+ const sent=await store.readRecord();a.profile.story='Edit during network';await store.writeWorkspace(a);
+ await store.acknowledge('user-a',sent,1);
+ const latest=await store.readRecord();assert.equal(latest.revision,1);assert.ok(latest.dirty);assert.equal(latest.state.profile.story,'Edit during network');
+ assert.equal(await store.acceptRecord('user-a',sent.localRev,legacy,legacy,2),false);
+ await store.backupRecord('user-a',a);assert.equal((await store.listBackups()).length,1);
+ store.setScope('user-b');assert.equal(await store.readWorkspace(),null);
+ store.setScope('user-a');await store.readWorkspace();
+ await store.mutateRecord('user-a',old=>({...old,localRev:old.localRev+1}));
+ await assert.rejects(store.writeWorkspace(a),/autre fenêtre/);
+ await store.removeAccountCache('user-a');assert.equal(await store.readRecord(),null);assert.equal((await store.listBackups()).length,0);
+ store.setScope('');assert.equal((await store.readWorkspace()).profile.vision,'Ma vision');
+});

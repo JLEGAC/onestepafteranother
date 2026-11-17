@@ -1,3 +1,4 @@
+import { readWorkspace, writeWorkspace } from "./local-store.js";
 const DB_NAME = "un-pas-apres-lautre";
 const DB_VERSION = 4;
 const STATE_KEY = "workspace";
@@ -46,50 +47,13 @@ export function createInitialState() {
   };
 }
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains("workspace")) db.createObjectStore("workspace", { keyPath: "id" });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
 export async function loadState() {
-  try {
-    const db = await openDB();
-    const state = await new Promise((resolve, reject) => {
-      const request = db.transaction("workspace", "readonly").objectStore("workspace").get(STATE_KEY);
-      request.onsuccess = () => resolve(request.result?.state || null);
-      request.onerror = () => reject(request.error);
-    });
-    db.close();
-    return state ? normalizeState(state) : createInitialState();
-  } catch (error) {
-    console.error("IndexedDB indisponible", error);
-    const raw = localStorage.getItem("upa-fallback");
-    return raw ? normalizeState(JSON.parse(raw)) : createInitialState();
-  }
+  const state = await readWorkspace();
+  return state ? normalizeState(state) : createInitialState();
 }
-
 export async function saveState(state) {
   state.updatedAt = new Date().toISOString();
-  try {
-    const db = await openDB();
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction("workspace", "readwrite");
-      tx.objectStore("workspace").put({ id: STATE_KEY, state });
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
-    db.close();
-  } catch (error) {
-    console.error("Sauvegarde IndexedDB impossible, repli localStorage", error);
-    localStorage.setItem("upa-fallback", JSON.stringify(state));
-  }
+  await writeWorkspace(state);
 }
 
 export function normalizeState(input) {
@@ -119,7 +83,8 @@ export function normalizeState(input) {
   state.profile.essentials = Array.isArray(state.profile.essentials) ? state.profile.essentials : [];
   state.profile.guides = Array.isArray(state.profile.guides) ? state.profile.guides : [];
   state.profile.resonance = Array.isArray(state.profile.resonance) ? state.profile.resonance : [];
-  state.profile.resonanceImages = Array.isArray(state.profile.resonanceImages) ? state.profile.resonanceImages : [];
+  state.profile.resonanceImages = (Array.isArray(state.profile.resonanceImages) ? state.profile.resonanceImages : [])
+    .filter(image => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=\r\n]+$/.test(image?.dataUrl || ""));
   state.schemaVersion = 4;
   return state;
 }

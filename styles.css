@@ -113,3 +113,15 @@ html[data-mode="dark"] .modal-backdrop{background:rgba(0,0,0,.72)}
 .dashboard-checkin .energy-choice{min-width:0;min-height:55px;padding:6px 2px;display:grid;place-items:center}
 .dashboard-checkin .moods{flex:1;align-items:stretch}
 .dashboard-checkin .mood-choice{min-width:0;min-height:55px;padding:3px 1px}
+
+/* Account and update surfaces stay outside app renders: no form loses focus. */
+.cloud-indicator { position:fixed; right:12px; bottom:calc(82px + env(safe-area-inset-bottom)); z-index:30; padding:7px 12px; border:1px solid #7b9e94; border-radius:20px; background:#f5faf6; color:#173e36; font:inherit; font-size:12px; box-shadow:0 2px 8px #0002; cursor:pointer; }
+.cloud-indicator[data-kind="choice"],.cloud-indicator[data-kind="error"]{background:#fff0d2;color:#634300;}
+.cloud-account { padding:18px; border:1px solid #8ea69c66; border-radius:18px; }
+.cloud-buttons { display:flex; flex-wrap:wrap; gap:10px; margin:12px 0; }
+.cloud-choice { padding:14px; margin-top:14px; border:1px solid #c9a85a; border-radius:12px; }
+.update-banner { position:fixed; inset:10px 12px auto; margin:auto; max-width:720px; z-index:1000; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:10px; padding:14px; background:#f5faf6; color:#173e36; border:1px solid #729587; border-radius:15px; box-shadow:0 4px 20px #0003; }
+.update-banner[hidden]{display:none;}
+.account-veil {position:fixed;inset:0;z-index:2000;background:#000b;display:grid;place-items:center;padding:20px;}
+.account-veil section {max-width:500px;padding:25px;border-radius:20px;background:#f5faf6;color:#173e36;}
+[data-mode="dark"] .cloud-indicator,[data-mode="dark"] .update-banner {background:#23382e;color:#f5faf6;}
