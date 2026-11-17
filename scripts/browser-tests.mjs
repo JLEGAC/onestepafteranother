@@ -37,6 +37,35 @@ const url=`http://127.0.0.1:${server.address().port}/`;
 const browser=await chromium.launch({headless:true,...(existsSync('/usr/bin/chromium')?{executablePath:'/usr/bin/chromium',args:['--no-sandbox']}:{} )});
 const context=await browser.newContext({viewport:{width:390,height:844}});
 const errors=[];context.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));
+let stage='initialisation';
+const events=[];
+function mark(message){stage=message;console.log(message);}
+function observe(ctx){
+ ctx.on('page',p=>{
+  p.on('console',m=>{if(m.type()==='error')events.push({type:'console',message:m.text()});});
+  p.on('pageerror',e=>events.push({type:'pageerror',message:e.message}));
+  p.on('requestfailed',r=>events.push({type:'requestfailed',url:r.url(),message:r.failure()?.errorText}));
+  p.on('response',r=>{if(r.status()>=400)events.push({type:'http',status:r.status(),url:r.url()});});
+ });
+}
+observe(context);
+async function diagnostics(error){
+ const report={stage,error:error.stack||String(error),servedVersion:version,events:events.slice(-60),pages:[]};
+ for(const ctx of browser.contexts())for(const p of ctx.pages()) {
+  try{report.pages.push(await p.evaluate(async()=>{
+   const reg=await navigator.serviceWorker.getRegistration();
+   const describe=w=>w?{state:w.state,script:w.scriptURL}:null;
+   return {url:location.href,scriptAttribute:document.querySelector('script[type=module]')?.getAttribute('src'),
+    scriptURL:document.querySelector('script[type=module]')?.src,appLoaded:!!document.querySelector('#cloud-indicator'),
+    bannerVisible:!!document.querySelector('.update-banner:not([hidden])'),
+    controller:describe(navigator.serviceWorker.controller),active:describe(reg?.active),waiting:describe(reg?.waiting),installing:describe(reg?.installing),
+    caches:await caches.keys(),text:document.body.innerText.slice(0,800)};
+  }));}catch(e){report.pages.push({url:p.url(),diagnosticError:e.message});}
+ }
+ console.error('PWA DEBUG '+JSON.stringify(report,null,2));
+ await mkdir('test-results',{recursive:true});
+ await writeFile('test-results/browser-debug.json',JSON.stringify(report,null,2));
+}
 let page=await context.newPage();
 const ready=async p=>{await p.waitForSelector('#cloud-indicator');};
 try {
@@ -47,14 +76,14 @@ try {
  await page.evaluate(()=>navigator.serviceWorker.ready);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
  await page.reload();await ready(page);
  assert.match(await page.locator('#app').innerText(),/Avancer sereinement/);
- console.log('✓ première installation, saisie et conservation de la vision');
+ mark('✓ première installation, saisie et conservation de la vision');
  await context.setOffline(true);await page.reload();await ready(page);
  assert.match(await page.locator('#app').innerText(),/Avancer sereinement/);
  await page.evaluate(()=>{location.hash='profile';window.dispatchEvent(new PopStateEvent('popstate'));});
  await page.getByRole('heading',{name:'Mon compte et mes données'}).waitFor();
  assert.match(await page.locator('#cloud-account').innerText(),/configuration du service|Se connecter avec Google/);
  await context.setOffline(false);
- console.log('✓ ouverture hors connexion et profil avec configuration cloud absente');
+ mark('✓ ouverture hors connexion et profil avec configuration cloud absente');
  version='b';
  await page.evaluate(async()=>{await (await navigator.serviceWorker.ready).update();});
  await page.locator('.update-banner:not([hidden])').waitFor();
@@ -66,7 +95,7 @@ try {
  await page.close();page=await context.newPage();await page.goto(url);await ready(page);
  await page.locator('.update-banner:not([hidden])').waitFor();
  await keeper.close();
- console.log('✓ report puis reproposition à la réouverture tant que la version attend');
+ mark('✓ report puis reproposition à la réouverture tant que la version attend');
  // An unsaved input exercises the application's actual draft detector.
  await page.evaluate(()=>{const i=document.createElement('input');i.id='test-draft';i.value='saisie non enregistrée';document.querySelector('#app').append(i);});
  page.once('dialog',d=>d.dismiss());
@@ -82,44 +111,53 @@ try {
  await page.waitForFunction(expected=>document.querySelector('script[type=module]')?.src.includes(expected),next);
  await page.waitForSelector('#cloud-indicator');
  assert.match(await page.locator('#app').innerText(),/Avancer sereinement/);
- console.log('✓ protection de saisie et autres fenêtres ; activation, rechargement, données préservées');
+ mark('✓ protection de saisie et autres fenêtres ; activation, rechargement, données préservées');
  await context.setOffline(true);await page.close();page=await context.newPage();await page.goto(url);
  await page.waitForSelector('#cloud-indicator');
  assert.match(await page.locator('#app').innerText(),/Avancer sereinement/);
  const caches=await page.evaluate(()=>window.caches.keys());assert.ok(caches.some(c=>c.endsWith(next)));
  await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/pwa-mobile.png',fullPage:true});
  assert.deepEqual(errors,[]);
- console.log('✓ réouverture hors connexion après mise à jour ; aucune erreur JavaScript');
+ mark('✓ réouverture hors connexion après mise à jour ; aucune erreur JavaScript');
  // Independently test closing ALL clients after deferring an update. Both
  // browser outcomes are valid: automatic activation, or a still-waiting worker.
  await context.setOffline(false);
  version='a';
  const reopening=await browser.newContext({viewport:{width:390,height:844}});
+ observe(reopening);
  let reopened=await reopening.newPage();
  try {
+  mark('DEBUG : installation du contexte indépendant en version A');
   await reopened.goto(url);await ready(reopened);
   await reopened.keyboard.press('Escape');
   await reopened.evaluate(()=>navigator.serviceWorker.ready);
   await reopened.waitForFunction(()=>!!navigator.serviceWorker.controller);
   await reopened.reload();await ready(reopened);
+  mark('DEBUG : recherche de la version B dans le contexte indépendant');
   version='b';
   await reopened.evaluate(async()=>{await (await navigator.serviceWorker.ready).update();});
   await reopened.locator('.update-banner:not([hidden])').waitFor();
   await reopened.getByRole('button',{name:'Plus tard',exact:true}).click();
+  mark('DEBUG : fermeture de toutes les fenêtres après Plus tard');
   await reopened.close();
   reopened=await reopening.newPage();await reopened.goto(url);await ready(reopened);
   await reopened.waitForFunction(expected=>
    document.querySelector('script[type=module]')?.src.includes('/releases/'+expected+'/') ||
    !!document.querySelector('.update-banner:not([hidden])'),next);
   const current=await reopened.locator('script[type=module]').getAttribute('src');
-  if(!current.includes('/releases/'+next+'/')) {
+  // getAttribute returns the relative HTML spelling (releases/...), whereas
+  // element.src is absolute. Normalize before deciding whether activation is needed.
+  const currentPath=new URL(current,reopened.url()).pathname;
+  console.log('DEBUG : version après réouverture',JSON.stringify({current,currentPath,expected:next}));
+  if(!currentPath.includes('/releases/'+next+'/')) {
+   mark('DEBUG : version encore en attente, activation explicite');
    await Promise.all([reopened.waitForEvent('load'),reopened.getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
    await ready(reopened);
   }
   await reopened.waitForFunction(expected=>document.querySelector('script[type=module]')?.src.includes('/releases/'+expected+'/'),next);
-  console.log('✓ fermeture complète après report : version activée ou mise à jour proposée');
- } finally {await reopening.close();}
+  mark('✓ fermeture complète après report : version activée ou mise à jour proposée');
+ } catch(error){await diagnostics(error);throw error;} finally {await reopening.close();}
 
-} finally {
+} catch(error){await diagnostics(error);throw error;} finally {
  await browser.close();await new Promise(r=>server.close(r));await rm(temporary,{recursive:true,force:true});
 }
