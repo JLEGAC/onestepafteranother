@@ -10,7 +10,7 @@ const all=[];
 async function collect(dir){for(const e of await readdir(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())await collect(p);else all.push(p);}}
 await collect('src');await collect('vendor');
 try { await collect('screenshots'); } catch {}
-for(const name of await readdir('.'))if(/\.(png|svg|css)$/.test(name)||name==='manifest.json')all.push(name);
+for(const name of await readdir('.'))if(/\.(png|svg|css)$/.test(name)||name==='manifest.json'||['presentation.html','confidentialite.html'].includes(name))all.push(name);
 const hash=createHash('sha256');
 for(const f of all.sort())hash.update(f).update(await readFile(f));
 hash.update(await readFile('index.html')).update(await readFile('sw.js'));
