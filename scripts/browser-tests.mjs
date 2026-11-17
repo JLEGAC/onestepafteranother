@@ -60,9 +60,13 @@ try {
  await page.locator('.update-banner:not([hidden])').waitFor();
  await page.getByRole('button',{name:'Plus tard',exact:true}).click();
  assert.equal(await page.locator('.update-banner').isVisible(),false);
- await page.close();page=await context.newPage();await page.goto(url);
+ // Keep one old-version client alive: otherwise the browser may legitimately
+ // activate the waiting worker when the last window closes.
+ const keeper=await context.newPage();await keeper.goto(url);await ready(keeper);
+ await page.close();page=await context.newPage();await page.goto(url);await ready(page);
  await page.locator('.update-banner:not([hidden])').waitFor();
- console.log('✓ nouvelle version en attente, report puis reproposition après réouverture');
+ await keeper.close();
+ console.log('✓ report puis reproposition à la réouverture tant que la version attend');
  // An unsaved input exercises the application's actual draft detector.
  await page.evaluate(()=>{const i=document.createElement('input');i.id='test-draft';i.value='saisie non enregistrée';document.querySelector('#app').append(i);});
  page.once('dialog',d=>d.dismiss());
@@ -86,6 +90,36 @@ try {
  await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/pwa-mobile.png',fullPage:true});
  assert.deepEqual(errors,[]);
  console.log('✓ réouverture hors connexion après mise à jour ; aucune erreur JavaScript');
+ // Independently test closing ALL clients after deferring an update. Both
+ // browser outcomes are valid: automatic activation, or a still-waiting worker.
+ await context.setOffline(false);
+ version='a';
+ const reopening=await browser.newContext({viewport:{width:390,height:844}});
+ let reopened=await reopening.newPage();
+ try {
+  await reopened.goto(url);await ready(reopened);
+  await reopened.keyboard.press('Escape');
+  await reopened.evaluate(()=>navigator.serviceWorker.ready);
+  await reopened.waitForFunction(()=>!!navigator.serviceWorker.controller);
+  await reopened.reload();await ready(reopened);
+  version='b';
+  await reopened.evaluate(async()=>{await (await navigator.serviceWorker.ready).update();});
+  await reopened.locator('.update-banner:not([hidden])').waitFor();
+  await reopened.getByRole('button',{name:'Plus tard',exact:true}).click();
+  await reopened.close();
+  reopened=await reopening.newPage();await reopened.goto(url);await ready(reopened);
+  await reopened.waitForFunction(expected=>
+   document.querySelector('script[type=module]').src.includes('/releases/'+expected+'/') ||
+   !!document.querySelector('.update-banner:not([hidden])'),next);
+  const current=await reopened.locator('script[type=module]').getAttribute('src');
+  if(!current.includes('/releases/'+next+'/')) {
+   await Promise.all([reopened.waitForEvent('load'),reopened.getByRole('button',{name:'Mettre à jour',exact:true}).click()]);
+   await ready(reopened);
+  }
+  await reopened.waitForFunction(expected=>document.querySelector('script[type=module]').src.includes('/releases/'+expected+'/'),next);
+  console.log('✓ fermeture complète après report : version activée ou mise à jour proposée');
+ } finally {await reopening.close();}
+
 } finally {
  await browser.close();await new Promise(r=>server.close(r));await rm(temporary,{recursive:true,force:true});
 }
