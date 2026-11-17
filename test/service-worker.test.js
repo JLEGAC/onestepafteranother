@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 let script=await readFile(new URL('../sw.js',import.meta.url),'utf8');
 const root='https://example.test/app/';
-script=script.replace("const RELEASE = 'development';","const RELEASE = 'v2';").replace('const FILES = [];',`const FILES = [{url:'./releases/v2/index.html',integrity:''},{url:'./releases/v2/src/app.js',alias:'./src/app.js',integrity:''}];`).replace("const SHELL = './index.html';","const SHELL = './releases/v2/index.html';");
+script=script.replace("const RELEASE = 'development';","const RELEASE = 'v2';").replace('const FILES = [];',`const FILES = [{url:'./releases/v2/index.html',integrity:''},{url:'./releases/v2/presentation.html',alias:'./presentation.html',integrity:''},{url:'./releases/v2/confidentialite.html',alias:'./confidentialite.html',integrity:''},{url:'./releases/v2/src/app.js',alias:'./src/app.js',integrity:''}];`).replace("const SHELL = './index.html';","const SHELL = './releases/v2/index.html';");
 function worker(fetchImpl,clients=[],maps=new Map()){
  const listeners={};let skipped=0;
  const caches={open:async name=>{if(!maps.has(name))maps.set(name,new Map());const m=maps.get(name);return {put:async(k,v)=>m.set(typeof k==='string'?k:k.url,v.clone()),match:async k=>m.get(typeof k==='string'?k:k.url)?.clone()};},keys:async()=>[...maps.keys()],delete:async k=>maps.delete(k)};
@@ -49,4 +49,17 @@ test('missing cache history never causes speculative deletion of another release
  await w.caches.open('upa-_app_-release-v3');
  await fire(w,'message',{data:{type:'RELEASE_READY',release:'v2'},source:{id:'a'}});
  assert.ok(w.maps.has('upa-_app_-release-v3'));
+});
+
+test('public HTML navigation serves its own document offline, including query strings',async()=>{
+ const w=worker(async req=>new Response(req.url));await fire(w,'install');
+ const offline=worker(async()=>{throw Error('offline');},[],w.maps);
+ for(const name of ['presentation.html','confidentialite.html']){
+  for(const suffix of ['', '?source=footer']){
+   const response=await fire(offline,'fetch',{request:{method:'GET',url:root+name+suffix,mode:'navigate'}});
+   assert.equal(await response.text(),root+'releases/v2/'+name);
+  }
+ }
+ const missing=await fire(offline,'fetch',{request:{method:'GET',url:root+'missing.html',mode:'navigate'}});
+ assert.equal(missing.status,503);
 });
