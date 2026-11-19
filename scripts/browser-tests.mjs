@@ -119,6 +119,7 @@ try {
  await page.locator('.step-tools [data-action="new-step"]').click();
  await page.locator('#step-form [name="title"]').fill('Préparer le dossier bébé');
  await page.locator('button[form="step-form"]').click();
+ await page.locator('.identity-step .identity-step').filter({hasText:'Préparer le dossier bébé'}).waitFor();
  assert.equal(await page.locator('.identity-step .identity-step').count(),1);
  await mkdir('test-results',{recursive:true});await page.screenshot({path:'test-results/identites-mobile.png',fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
