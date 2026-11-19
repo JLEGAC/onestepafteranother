@@ -7,10 +7,11 @@ import { changeHabitMonth, selectHabitDate, selectHabitFilter, habitForm, challe
 import { createChallenge, expireChallenges, markCapsuleWatched, markChallengeDay, stopChallenge, toggleHabit, toggleHabitHistory } from "./engagement.js";
 import { canPlaceInTimeSlot } from "./planning.js";
 
-import { flushWrites, pendingWrites, scope } from "./local-store.js";
+import { backupRecord, flushWrites, pendingWrites, scope } from "./local-store.js";
 import { initCloud } from "./cloud/ui.js";
+import { initDropboxUI } from "./cloud/dropbox-ui.js";
 import { initUpdates } from "./pwa/updates.js";
-let cloudUI, updates;
+let cloudUI, dropboxUI, updates;
 const disclosures = new Map();
 const operations = new Set();
 function track(promise) { operations.add(promise); promise.then(()=>operations.delete(promise),()=>operations.delete(promise)); return promise; }
@@ -47,6 +48,7 @@ function render() {
   bindPageInteractions();
   showUpdateStatus();
   cloudUI?.draw();
+  dropboxUI?.draw();
 }
 
 function navigate(next, replace = false) {
@@ -851,6 +853,7 @@ window.addEventListener('storage', event => {
 updates=initUpdates({hasDraft,flush:flushAll,enabled:()=>state.preferences.autoUpdates !== false,onStatus:()=>showUpdateStatus()});
 render();
 cloudUI=initCloud({flush:flushAll,hasDraft:()=>hasDraft()||pendingWrites()>0||operations.size>0,apply:next=>{state=next;closeModal();render();},openProfile:()=>navigate('profile')});
+dropboxUI=await initDropboxUI({flush:flushAll,getState:()=>state,backup:()=>backupRecord(scope(),state),replace:async next=>{state=next;await persist();closeModal();render();}});
 if(!scope()) addOnboarding();
 
 // Les relancements et raccourcis réutilisent la fenêtre sans perdre les saisies.

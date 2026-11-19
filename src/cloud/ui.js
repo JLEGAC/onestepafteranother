@@ -2,6 +2,7 @@ import { makeClient } from './client.js';
 import { createSyncEngine } from './engine.js';
 import { exportObject } from '../data.js';
 import { listBackups, scope, readRecord } from '../local-store.js';
+import { dropboxMode } from './dropbox.js';
 const labels={disabled:'Sauvegarde sur cet appareil',guest:'Mode local',connecting:'Connexion…',pending:'Changements en attente',syncing:'Synchronisation…',synced:'Synchronisé',offline:'Hors connexion',error:'Synchronisation à réessayer',choice:'Choix nécessaire',waiting:'Données disponibles après ta saisie',reauth:'Connexion à renouveler',removed:'Compte cloud indisponible'};
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function download(state,name='sauvegarde') {
@@ -10,7 +11,7 @@ function download(state,name='sauvegarde') {
 }
 export function initCloud(hooks) {
   let client;
-  try { client=makeClient(); } catch(err) { console.error(err.message); }
+  try { client=dropboxMode()?null:makeClient(); } catch(err) { console.error(err.message); }
   let engine;
   function draw(status=engine?.status) {
     if (!status) return;
@@ -19,6 +20,7 @@ export function initCloud(hooks) {
     indicator.textContent=labels[status.kind] || 'Sauvegarde locale'; indicator.dataset.kind=status.kind;
     indicator.title=status.pending?'Des changements restent à envoyer.':'Ouvrir mon compte';
     const host=document.querySelector('#cloud-account'); if(!host)return;
+    host.hidden=dropboxMode(); if(dropboxMode())return;
     const connected=Boolean(scope());
     const conflict=status.conflict;
     host.innerHTML=`<h2>Mon compte et mes données</h2><p role="status">${esc(labels[status.kind])}${status.pending?' · changements conservés sur cet appareil':''}</p>
