@@ -134,7 +134,17 @@ try {
  assert.match(await page.locator('.win-item').first().innerText(),/Je suis une super maman/);
  await page.locator('.header-icon[data-page="profile"]').click();
  await page.locator('[data-setting="autoUpdates"]').uncheck();
- await page.getByText('Préférence désactivée.',{exact:true}).waitFor();
+ await page.waitForFunction(()=>new Promise(resolve=>{
+  const request=indexedDB.open('un-pas-apres-lautre',4);
+  request.onerror=()=>resolve(false);
+  request.onsuccess=()=>{
+   const db=request.result;
+   if(!db.objectStoreNames.contains('workspace')){db.close();resolve(false);return;}
+   const read=db.transaction('workspace').objectStore('workspace').get('workspace');
+   read.onsuccess=()=>{resolve(read.result?.state?.preferences?.autoUpdates===false);db.close();};
+   read.onerror=()=>{resolve(false);db.close();};
+  };
+ }),null,{timeout:10000});
  await page.reload();await ready(page);
  assert.equal(await page.locator('[data-setting="autoUpdates"]').isChecked(),false);
  await page.getByRole('button',{name:'Vérifier maintenant',exact:true}).click();
