@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {initUpdates} from '../src/pwa/updates.js';
+const tick=()=>new Promise(r=>setTimeout(r,0));
+test('automatic check can be disabled; manual check always works and reports offline, available and failure states',async()=>{
+ const sw=new EventTarget(),reg=new EventTarget();let count=0,fail=false;
+ reg.update=async()=>{count++;if(fail)throw Error('network');};
+ sw.register=async()=>reg;sw.ready=Promise.resolve(reg);sw.controller={postMessage(){}};
+ Object.defineProperty(globalThis,'navigator',{value:{serviceWorker:sw,onLine:true},configurable:true});
+ globalThis.window=new EventTarget();globalThis.document=new EventTarget();document.hidden=false;
+ const buttons={};const banner={hidden:true,setAttribute(){},querySelector(key){return buttons[key]||=( {} );}};
+ document.createElement=()=>banner;document.body={append(){}};
+ let enabled=false;
+ const updates=initUpdates({hasDraft:()=>false,flush:async()=>{},enabled:()=>enabled});await tick();assert.equal(count,0);
+ await updates.check(true);assert.equal(count,1);assert.match(updates.status,/à jour/);
+ navigator.onLine=false;await updates.check(true);assert.equal(count,1);assert.match(updates.status,/Hors ligne/);
+ navigator.onLine=true;fail=true;await updates.check(true);assert.match(updates.status,/impossible/);
+ fail=false;reg.waiting={};await updates.check(true);assert.match(updates.status,/disponible/);assert.equal(banner.hidden,false);
+ buttons['[data-later]'].onclick();assert.equal(banner.hidden,true);await updates.check(true);assert.equal(banner.hidden,false);
+});

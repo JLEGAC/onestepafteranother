@@ -1,3 +1,5 @@
+import { pillarForm, identityStepForm } from "./identity-views.js";
+import { blockers, dependencyError, editError, scheduleIssue, stepDone, stepActions } from "./identity.js";
 import { addXP, badgesFor, levelFor, milestoneFor, pointsForAction, themeRewards } from "./gamification.js";
 import { createInitialState, exportObject, getCurrentWeek, loadState, newId, saveState, stoneProgress, todayISO, validateImport } from "./data.js";
 import { actionForm, appShell, blockerForm, customToolForm, decisionForm, modal, retroForm, scheduleActionForm, selectHistoryDate, shiftHistoryDate, stoneForm, stepForm, visionForm, weeklyObjectiveForm } from "./views.js";
@@ -8,7 +10,8 @@ import { canPlaceInTimeSlot } from "./planning.js";
 import { flushWrites, pendingWrites, scope } from "./local-store.js";
 import { initCloud } from "./cloud/ui.js";
 import { initUpdates } from "./pwa/updates.js";
-let cloudUI;
+let cloudUI, updates;
+const disclosures = new Map();
 const operations = new Set();
 function track(promise) { operations.add(promise); promise.then(()=>operations.delete(promise),()=>operations.delete(promise)); return promise; }
 async function flushAll() { await Promise.all([...operations]); await flushWrites(); }
@@ -40,7 +43,9 @@ function render() {
     banner.innerHTML = `<span>📲</span><span><b>Emporte ton cap avec toi</b><small>Installe l’application sur ton téléphone.</small></span><button class="button button-primary button-small" data-action="install-app">Installer</button>`;
     document.querySelector("#page-content").prepend(banner);
   }
+  document.querySelectorAll("[data-disclosure]").forEach(el=>{if(disclosures.has(el.dataset.disclosure))el.open=disclosures.get(el.dataset.disclosure);});
   bindPageInteractions();
+  showUpdateStatus();
   cloudUI?.draw();
 }
 
@@ -103,6 +108,7 @@ function playChime() {
 async function persist() { await saveState(state); }
 
 function bindPageInteractions() {
+  document.querySelectorAll("[data-disclosure]").forEach(el=>el.addEventListener("toggle",()=>disclosures.set(el.dataset.disclosure,el.open)));
   document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", event => {
     event.preventDefault(); navigate(button.dataset.page);
   }));
@@ -119,6 +125,7 @@ function bindPageInteractions() {
   document.querySelector("#win-form")?.addEventListener("submit", async event => {
     event.preventDefault(); const fd = new FormData(event.currentTarget); const input = fd.get("win")?.toString().trim();
     if (!input) return;
+    event.currentTarget.querySelector('[type="submit"]').disabled=true;
     const [relatedType, relatedId] = String(fd.get("related") || "").split(":");
     const today = todayISO(); state.daily[today] ||= {}; state.daily[today].wins ||= []; state.daily[today].wins.unshift({ text: input, relatedType: relatedId ? relatedType : "", relatedId: relatedId || "" });
     if (addXP(state, 5, "victory", newId("win"))) celebrate("+5 XP · une victoire de plus dans ton livre d’or !");
@@ -147,7 +154,7 @@ function bindPageInteractions() {
   }));
   document.querySelectorAll("[data-setting]").forEach(input => input.addEventListener("change", async () => {
     state.preferences[input.dataset.setting] = input.checked;
-    await persist();
+    await persist(); input.defaultChecked=input.checked;
     if (input.dataset.setting === "darkMode") { render(); return; }
     toast(input.checked ? "Préférence activée." : "Préférence désactivée.");
   }));
@@ -236,13 +243,14 @@ function bindModalInteractions() {
       const stepSelect = modalRoot.querySelector('[name="stepId"]');
       const selectedAction = state.actions.find(item => item.id === modalRoot.querySelector('[name="id"]')?.value);
       const options = (state.steps || []).filter(step => step.stoneId === event.target.value).map(step => `<option value="${escapeHTML(step.id)}" ${selectedAction?.stepId === step.id ? "selected" : ""}>${escapeHTML(step.title)}</option>`).join("");
-      stepSelect.innerHTML = `<option value="">Rattacher directement à l’objectif</option>${options}`;
+      stepSelect.innerHTML = `<option value="">Rattacher directement à l’identité</option>${options}`;
       if (!options) stepSelect.value = "";
     }
   });
   modalRoot.querySelector("#action-form")?.addEventListener("submit", saveActionForm);
   modalRoot.querySelector("#stone-form")?.addEventListener("submit", saveStoneForm);
   modalRoot.querySelector("#step-form")?.addEventListener("submit", saveStepForm);
+  modalRoot.querySelector("#pillar-form")?.addEventListener("submit", savePillarForm);
   modalRoot.querySelector("#vision-form")?.addEventListener("submit", saveVisionForm);
   modalRoot.querySelector("#story-form")?.addEventListener("submit", saveStoryForm);
   modalRoot.querySelector("#essentials-form")?.addEventListener("submit", saveEssentialsForm);
@@ -269,13 +277,19 @@ async function handleAction(action, data = {}) {
   if (action === "plan-today") return planToday(data.id);
   if (action === "schedule-action") {
     const record = state.actions.find(item => item.id === data.id);
-    if (record) return showModal(scheduleActionForm(state, record));
+    if (record) return openSchedule(record);
   }
   if (action === "complete-week-action") return completeAction(data.id);
   if (action === "new-stone") return showModal(stoneForm());
   if (action === "edit-stone") return showModal(stoneForm(state.stones.find(item => item.id === data.id)));
-  if (action === "new-step") return showModal(stepForm(data.stone));
-  if (action === "edit-step") return showModal(stepForm(data.stone, state.steps.find(item => item.id === data.id)));
+  if (action === "new-step") return showModal(identityStepForm(state, data.stone, null, data.pillar, data.parent));
+  if (action === "edit-step") return showModal(identityStepForm(state, data.stone, state.steps.find(item => item.id === data.id)));
+  if (action === "new-pillar") return showModal(pillarForm(state,data.stone));
+  if (action === "edit-pillar") { const p=state.pillars.find(p=>p.id===data.id); if(p)return showModal(pillarForm(state,p.stoneId,p)); }
+  if (action === "delete-step") return deleteStep(data.id);
+  if (action === "focus-step") { const step=state.steps.find(s=>s.id===data.id);const identity=state.stones.find(s=>s.id===step?.stoneId);if(identity){identity.nextStepId=step.id;await persist();render();toast("Cette étape sera mise en avant sur ta carte.");}return; }
+  if (action === "toggle-step") return toggleStep(data.id);
+  if (action === "check-update") { await updates?.check(true); showUpdateStatus(); return; }
   if (action === "reserve-move") return moveReserveAction(data.id, Number(data.delta) || 0);
   if (action === "new-admin-stone") return createAdminStone();
   if (action === "blocked") return showModal(blockerForm(state.actions.find(item => item.id === data.id)));
@@ -302,7 +316,7 @@ async function handleAction(action, data = {}) {
   if (action === "import") return importData();
   if (action === "reset") return resetData();
   if (action === "stone-detail") return showStoneDetail(data.id);
-  if (action === "new-habit") return showModal(modal("Ajouter une habitude", habitForm(null, state), `<button type="submit" class="button button-primary wide" form="habit-form">Ajouter à mon suivi</button>`));
+  if (action === "new-habit") return showModal(modal("Ajouter une habitude", habitForm(data.stone ? {linkedStoneId:data.stone} : null, state), `<button type="submit" class="button button-primary wide" form="habit-form">Ajouter à mon suivi</button>`));
   if (action === "edit-habit") return showModal(modal("Modifier mon habitude", habitForm(state.habits.find(item => item.id === data.id), state), `<button type="submit" class="button button-primary wide" form="habit-form">Enregistrer</button><button type="button" class="button button-outline" data-action="archive-habit" data-id="${data.id}">Archiver</button>`));
   if (action === "archive-habit") return archiveHabit(data.id);
   if (action === "habit-filter") { selectHabitFilter(data.id || ""); render(); }
@@ -334,6 +348,8 @@ async function handleAction(action, data = {}) {
 async function completeAction(id) {
   const action = state.actions.find(item => item.id === id);
   if (!action || action.status === "done") return;
+  const blocked = blockers(state, action);
+  if (blocked.length) { render(); return toast(`Termine d’abord : ${blocked.map(b=>escapeHTML(b.title)).join(" · ")}`, "🔒"); }
   const before = previousBadges();
   const previousLevel = levelFor(state.xp.total).level;
   action.status = "done"; action.completedAt = new Date().toISOString();
@@ -377,7 +393,7 @@ async function saveHabitForm(event) {
   const existing = state.habits.find(item => item.id === id);
   const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), emoji: fd.get("emoji").trim() || "🌱", linkedStoneId: fd.get("linkedStoneId") || "", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
   if (existing) Object.assign(existing, record); else state.habits.unshift(record);
-  await persist(); closeModal(); render(); celebrate(existing ? "Habitude mise à jour." : "Nouvelle habitude ajoutée · +1 XP, ou +2 si elle est liée à un objectif.");
+  await persist(); closeModal(); render(); celebrate(existing ? "Habitude mise à jour." : "Nouvelle habitude ajoutée · +1 XP, ou +2 si elle est liée à une identité.");
 }
 
 async function saveWeeklyObjective(event) {
@@ -479,19 +495,27 @@ async function removeCapsule(id) {
   state.capsules = state.capsules.filter(item => item.id !== id); await persist(); render(); toast("Capsule retirée de ta collection.", "🎬");
 }
 
-async function planAction(id) {
-  const action = state.actions.find(item => item.id === id);
-  if (!action) return;
-  if (!action.stoneId) { toast("Rattache d’abord cette action à un objectif.", "🎯"); return; }
-  const week = getCurrentWeek(state); action.status = "weekly"; action.weekId = week.id; await persist(); render(); toast("Action embarquée dans ton Cap Hebdo.", "🧭");
+function formError(message) {
+  const form=modalRoot.querySelector('form');
+  if(form){let el=form.querySelector('.form-error');if(!el){el=document.createElement('p');el.className='dependency-note form-error';el.setAttribute('role','alert');form.prepend(el);}el.textContent=message;el.scrollIntoView({block:'nearest'});}
+  else toast(escapeHTML(message),'🔒');
 }
-
+function openSchedule(action) {
+  const week=getCurrentWeek(state);
+  const issue=scheduleIssue(state,{...action,weekId:week.id,plannedDate:week.end,slot:'evening'});
+  if(issue?.prerequisiteId && (!state.actions.find(a=>a.id===issue.prerequisiteId)?.plannedDate || state.actions.find(a=>a.id===issue.prerequisiteId)?.weekId!==week.id)) {
+    showModal(modal('Planifier le préalable',`<p>${escapeHTML(issue.message)}</p><p>Tu pourras ensuite placer « ${escapeHTML(action.title)} » après lui dans la même semaine.</p>`,`<button class="button button-primary" data-action="plan-action" data-id="${escapeHTML(issue.prerequisiteId)}">Planifier d’abord l’action préalable</button>`));return;
+  }
+  showModal(scheduleActionForm(state,action));
+  if(issue)formError(issue.message);
+}
+async function planAction(id) {
+  const action=state.actions.find(a=>a.id===id);if(!action)return;
+  if(!action.stoneId){toast('Rattache d’abord cette action à une identité.','🎯');return;}
+  openSchedule(action);
+}
 async function planToday(id) {
-  const action = state.actions.find(item => item.id === id); if (!action) return;
-  const week = getCurrentWeek(state); const date = todayISO();
-  if (date < week.start || date > week.end) { toast("Le jour sélectionné doit être dans ton Cap actuel.", "📅"); return; }
-  action.status = "weekly"; action.weekId = week.id; action.plannedDate = date;
-  await persist(); render(); toast("Action posée sur ta journée.", "🌤️");
+  const action=state.actions.find(a=>a.id===id);if(action)openSchedule({...action,plannedDate:todayISO()});
 }
 
 async function scheduleActionInSlot(id, date, slot) {
@@ -503,13 +527,18 @@ async function scheduleActionInSlot(id, date, slot) {
     toast("Ce créneau contient déjà une action de taille supérieure à S. Choisis un autre créneau.", "🧭");
     return false;
   }
+  const candidate={...action,status:"weekly",weekId:week.id,plannedDate:date,slot};
+  const next={...state,actions:state.actions.map(a=>a.id===id?candidate:a)};
+  const issue=scheduleIssue(next,candidate);
+  const error=issue?.message || editError(state,next);
+  if(error){formError(error);return false;}
   action.status = "weekly";
   action.weekId = week.id;
   action.plannedDate = date;
   action.slot = slot;
   await persist();
   render();
-  toast(`${action.title} est placé dans ton planning.`, "🗓️");
+  toast(`${escapeHTML(action.title)} est placé dans ton planning.`, "🗓️");
   return true;
 }
 
@@ -528,25 +557,29 @@ async function saveActionForm(event) {
   const stepId = fd.get("stepId") || "";
   if (stepId) {
     const step = state.steps.find(item => item.id === stepId);
-    if (!step) { toast("Cette étape n’existe plus. Choisis un objectif ou une autre étape.", "🎯"); return; }
+    if (!step) { toast("Cette étape n’existe plus. Choisis une identité ou une autre étape.", "🎯"); return; }
     stoneId = step.stoneId;
   }
-  if (inWeek && !stoneId) { toast("Rattache cette action à un objectif avant de l’embarquer.", "🎯"); form.elements.stoneId.focus(); return; }
+  if (inWeek && !stoneId) { toast("Rattache cette action à une identité avant de l’embarquer.", "🎯"); form.elements.stoneId.focus(); return; }
   const slot = fd.get("slot") || "";
   const plannedDate = fd.get("plannedDate") || "";
   if (inWeek && slot && !plannedDate) { toast("Choisis un jour pour placer ce focus dans ta journée.", "📅"); return; }
   if (inWeek && plannedDate && (plannedDate < week.start || plannedDate > week.end)) { toast("Choisis un jour dans cette semaine.", "📅"); return; }
-  if (inWeek && plannedDate) {
+  if (inWeek && plannedDate && existing?.status !== "done") {
     if (!canPlaceInTimeSlot(state.actions, { id, effort: fd.get("effort") || "M", plannedDate, slot })) { toast("Ce créneau contient déjà une action de taille supérieure à S. Choisis un autre créneau.", "🧭"); return; }
   }
-  const record = { ...(existing || {}), id: existing?.id || newId("action"), title: fd.get("title").trim(), stoneId, stepId, effort: fd.get("effort") || "M", criteria: fd.get("criteria").trim(), slot: inWeek ? slot : "", plannedDate: inWeek ? plannedDate : "", status: inWeek ? "weekly" : (stoneId ? "reserve" : "unassigned"), weekId: inWeek ? week.id : "" };
+  const record = { ...(existing || {}), dependsOnActionId:fd.get("dependsOnActionId") || "", id: existing?.id || newId("action"), title: fd.get("title").trim(), stoneId, stepId, effort: fd.get("effort") || "M", criteria: fd.get("criteria").trim(), slot: inWeek ? slot : "", plannedDate: inWeek ? plannedDate : "", status: inWeek ? "weekly" : (stoneId ? "reserve" : "unassigned"), weekId: inWeek ? week.id : "" };
+  if(existing?.status === 'done') { record.status='done';record.weekId=existing.weekId;record.plannedDate=existing.plannedDate;record.slot=existing.slot; }
+  const preview={...state,actions:existing?state.actions.map(a=>a.id===record.id?record:a):[...state.actions,record]};
+  const error=editError(state,preview);if(error){formError(error);return;}
+  if(record.status==='weekly'){const issue=scheduleIssue(preview,record);if(issue){formError(issue.message);return;}}
   if (existing) Object.assign(existing, record);
   else if (shouldSplit) {
     const lines = fd.get("criteria").split("\n").map(line => line.replace(/^\s*\d+[.)-]?\s*/, "").trim()).filter(Boolean).slice(0, 5);
     if (lines.length < 2) { toast("Ajoute au moins deux étapes, une par ligne.", "🪨"); return; }
     pendingAction = null;
     record.status = "split"; record.weekId = ""; record.slot = ""; state.actions.unshift(record);
-    for (const title of lines) state.actions.unshift({ id: newId("action"), title, stoneId, stepId, effort: record.effort === "XXL" ? "M" : record.effort, criteria: "", slot: "", status: stoneId ? "reserve" : "unassigned", weekId: "", parentId: record.id });
+    for (const title of lines) state.actions.unshift({ id: newId("action"), title, stoneId, stepId, effort: record.effort === "XXL" ? "M" : record.effort, criteria: "", slot: "", status: stoneId ? "reserve" : "unassigned", weekId: "", parentId: record.id, dependsOnActionId:record.dependsOnActionId || "" });
   } else { pendingAction = null; state.actions.unshift(record); }
   await persist(); closeModal(); render(); toast(shouldSplit ? "Action découpée en étapes plus petites." : existing ? "Micro-action mise à jour." : "Micro-action ajoutée à ton chemin.", "✨");
 }
@@ -555,22 +588,50 @@ async function saveStoneForm(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
   let title = fd.get("title").trim();
   const leadingEmoji = title.match(/^\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*/u)?.[0];
-  const icon = leadingEmoji || state.stones.find(item => item.id === id)?.icon || "🎯";
+  const icon = leadingEmoji || fd.get("icon")?.trim() || "🎯";
   if (leadingEmoji) title = title.slice(leadingEmoji.length).trimStart();
-  const stone = { id: id || newId("stone"), title, icon, success: fd.get("success").trim(), anchor: fd.get("anchor").trim(), due: fd.get("due").trim() };
+  const stone = { id: id || newId("stone"), title, icon, description: fd.get("description")?.trim() || "", ...(fd.has("anchor") ? {anchor:fd.get("anchor").trim()} : {}) };
+  if(!title){formError("Donne un nom à cette identité.");return;}
   const existing = state.stones.find(item => item.id === id);
   if (existing) Object.assign(existing, stone); else state.stones.unshift(stone);
-  await persist(); closeModal(); render(); celebrate(existing ? "Ton objectif est mis à jour." : "Un nouvel objectif prend forme !");
+  await persist(); closeModal(); render(); navigate(`identity/${encodeURIComponent(stone.id)}`); celebrate(existing ? "Ton identité est mise à jour." : "Ton identité prend forme. Ajoute maintenant ses piliers.");
 }
 
+async function savePillarForm(event) {
+  event.preventDefault();const fd=new FormData(event.currentTarget);
+  const id=fd.get('id')||newId('pillar');const existing=state.pillars.find(p=>p.id===id);
+  const record={id,stoneId:fd.get('stoneId'),title:fd.get('title').trim(),description:fd.get('description').trim()};
+  if(!record.title)return formError('Donne un nom à ce pilier.');
+  if(existing)Object.assign(existing,record);else state.pillars.push(record);
+  disclosures.set(id,true);await persist();closeModal();render();toast('Pilier enregistré.');
+}
 async function saveStepForm(event) {
-  event.preventDefault();
-  const fd = new FormData(event.currentTarget); const id = fd.get("id");
-  const record = { id: id || newId("step"), stoneId: fd.get("stoneId"), title: fd.get("title").trim() };
-  const existing = state.steps.find(item => item.id === id);
-  if (existing) Object.assign(existing, record); else state.steps.push(record);
-  await persist(); closeModal(); render();
-  toast(existing ? "Étape mise à jour." : "Étape ajoutée à l’objectif.", "🪜");
+  event.preventDefault();const fd=new FormData(event.currentTarget);const id=fd.get('id')||newId('step');
+  const existing=state.steps.find(s=>s.id===id);
+  const record={...existing,id,stoneId:fd.get('stoneId'),pillarId:fd.get('pillarId'),parentStepId:fd.get('parentStepId')||'',title:fd.get('title').trim(),description:fd.get('description').trim(),dependsOnStepId:fd.get('dependsOnStepId')||''};
+  if(!record.title)return formError('Précise le résultat à atteindre.');
+  const pillar=state.pillars.find(p=>p.id===record.pillarId&&p.stoneId===record.stoneId);if(!pillar)return formError('Choisis un pilier.');
+  const parent=state.steps.find(s=>s.id===record.parentStepId);if(parent)record.pillarId=parent.pillarId;
+  const next={...state,steps:existing?state.steps.map(s=>s.id===id?record:s.parentStepId===id?{...s,pillarId:record.pillarId}:s):[...state.steps,record]};
+  const error=editError(state,next);if(error)return formError(error);
+  state=next;disclosures.set(record.pillarId,true);disclosures.set(id,true);if(parent)disclosures.set(parent.id,true);
+  await persist();closeModal();render();toast(existing?'Étape mise à jour.':'Étape ajoutée. Tu peux maintenant ajouter ses actions.');
+}
+async function toggleStep(id) {
+  const step=state.steps.find(s=>s.id===id);if(!step||stepActions(state,id).length)return;
+  const required=blockers(state,{stepId:id});
+  if(required.length)return formError(`Termine d’abord : ${required.map(p=>p.title).join(' · ')}`);
+  const next={...state,steps:state.steps.map(s=>s.id===id?{...s,completedAt:s.completedAt?'':new Date().toISOString()}:s)};
+  const error=editError(state,next);if(error)return formError(error);
+  state=next;await persist();render();
+}
+async function deleteStep(id) {
+  const step=state.steps.find(s=>s.id===id);if(!step)return;
+  if(state.steps.some(s=>s.dependsOnStepId===id))return formError('Une autre étape attend celle-ci. Modifie d’abord sa dépendance.');
+  if(!confirm('Supprimer cette étape ? Ses actions seront conservées dans « Actions à organiser » de cette identité. Ses sous-étapes deviendront des étapes du même pilier.'))return;
+  const next={...state,steps:state.steps.filter(s=>s.id!==id).map(s=>s.parentStepId===id?{...s,parentStepId:''}:s),actions:state.actions.map(a=>a.stepId===id?{...a,stepId:'',stoneId:step.stoneId}:a)};
+  const error=editError(state,next);if(error)return formError(error);
+  state=next;await persist();closeModal();render();toast('Étape supprimée. Tes actions sont conservées.');
 }
 
 async function moveReserveAction(id, delta) {
@@ -617,14 +678,16 @@ function splitRecord(action, source = "blocker") {
   const children = [1, 2].map(number => ({
     id: newId("action"), title: `${action.title} — étape ${number}`, stoneId: action.stoneId, stepId: action.stepId || "",
     effort: childEffort, criteria: "", slot: "", plannedDate: "", status: "reserve", weekId: "", parentId: action.id,
-    splitSource: source
+    dependsOnActionId: action.dependsOnActionId || "", splitSource: source
   }));
+  children[1].dependsOnActionId=children[0].id;
   state.actions.unshift(...children);
 }
 
 async function saveBlockerChoice(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const action = state.actions.find(item => item.id === fd.get("id"));
   if (!action) return;
+  const before=structuredClone(state);
   const choice = event.submitter?.value || "reserve"; action.blockerReason = fd.get("reason").trim();
   if (choice === "reduce") {
     const order = ["S", "M", "L", "XL", "XXL"]; const index = order.indexOf(action.effort); action.effort = order[Math.max(index - 1, 0)];
@@ -636,6 +699,7 @@ async function saveBlockerChoice(event) {
   } else {
     toast("Action gardée dans ton Cap. Tu peux demander de l’aide ou la réajuster plus tard.", "🧭");
   }
+  const error=editError(before,state);if(error){state=before;formError(error+" Réorganise d’abord les actions qui en dépendent.");return;}
   await persist(); closeModal(); render();
 }
 
@@ -677,7 +741,7 @@ function showDecisionResult(event) {
 }
 
 async function saveRetro(event) {
-  event.preventDefault(); const fd = new FormData(event.currentTarget); const week = state.weeks.find(item => item.id === fd.get("weekId")) || getCurrentWeek(state); const summary = { mirror: fd.get("mirror").trim(), closedAt: new Date().toISOString(), decisions: {} };
+  event.preventDefault(); const original=structuredClone(state); const fd = new FormData(event.currentTarget); const week = state.weeks.find(item => item.id === fd.get("weekId")) || getCurrentWeek(state); const summary = { mirror: fd.get("mirror").trim(), closedAt: new Date().toISOString(), decisions: {} };
   const before = previousBadges();
   const retroWin = fd.get("win")?.trim();
   if (retroWin) { state.daily[todayISO()] ||= {}; state.daily[todayISO()].wins ||= []; state.daily[todayISO()].wins.unshift(retroWin); addXP(state, 5, "retro victory", week.id); }
@@ -688,25 +752,11 @@ async function saveRetro(event) {
     else if (decision === "split") splitRecord(action, "retro");
     else { action.status = "reserve"; action.weekId = ""; action.slot = ""; action.blockerReason = reason; }
   }
+  const dependencyProblem=editError(original,state);if(dependencyProblem){state=original;formError(dependencyProblem);return;}
   week.retro = summary; addXP(state, 15, "retro", week.id); const badge = newBadgeMessage(before); await persist(); closeModal(); navigate("week"); celebrate(["Cap clôturé · +15 XP pour avoir pris du recul !", badge].filter(Boolean).join(" · "));
 }
 
-function showStoneDetail(id) {
-  const stone = state.stones.find(item => item.id === id); if (!stone) return;
-  const progress = stoneProgress(state, id);
-  const dueLabel = /^\d{4}-\d{2}-\d{2}$/.test(stone.due || "") ? new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${stone.due}T12:00:00`)) : stone.due;
-  const steps = (state.steps || []).filter(step => step.stoneId === id);
-  const stepIds = new Set(steps.map(step => step.id));
-  const actions = state.actions.filter(action => action.stoneId === id || stepIds.has(action.stepId));
-  const renderAction = action => `<div class="detail-action ${action.status === "done" ? "is-done" : ""}"><b>${action.status === "done" ? "✓ " : "○ "}${escapeHTML(action.title)}</b><small>${escapeHTML(action.effort || "M")} · ${escapeHTML(action.criteria || (action.status === "reserve" ? "Dans la réserve" : action.status === "weekly" ? "Dans le Cap" : ""))}</small>${action.status === "reserve" ? `<button class="button button-soft button-small" data-action="plan-action" data-id="${action.id}">＋ Embarquer dans mon Cap</button>` : ""}</div>`;
-  const renderStep = step => {
-    const linked = actions.filter(action => action.stepId === step.id && action.status !== "abandoned" && action.status !== "split");
-    const done = linked.filter(action => action.status === "done").length;
-    return `<section class="objective-step"><div class="objective-step-heading"><h3>${escapeHTML(step.title)} <small>${done}/${linked.length} actions</small></h3><button class="more-button" data-action="edit-step" data-id="${step.id}" data-stone="${id}" aria-label="Modifier l’étape">✎</button></div>${linked.length ? linked.map(renderAction).join("") : `<p class="muted-copy">Aucune action rattachée à cette étape.</p>`}<button class="text-button" data-action="new-action" data-stone="${id}" data-step="${step.id}">＋ Ajouter une action à cette étape</button></section>`;
-  };
-  const direct = actions.filter(action => !action.stepId && action.status !== "abandoned" && action.status !== "split");
-  showModal(modal(`${stone.icon || "🎯"} ${escapeHTML(stone.title.replace(/^\p{Extended_Pictographic}(?:\uFE0F)?\s*/u, ""))}`, `<div class="stone-detail"><div class="progress-label"><span>${progress.done}/${progress.total} actions accomplies</span><b>${progress.percent}%</b></div><div class="progress-track"><span style="width:${progress.percent}%"></span></div><p class="form-hint">Calcul : actions accomplies ÷ toutes les actions rattachées, réserve comprise.</p>${dueLabel ? `<p>Échéance : ${escapeHTML(dueLabel)}</p>` : ""}${stone.success ? `<h3>Critère de succès</h3><p>${escapeHTML(stone.success)}</p>` : ""}${stone.anchor ? `<h3>Bénéfice</h3><p>${escapeHTML(stone.anchor)}</p>` : ""}<h3>Étapes</h3>${steps.length ? steps.map(renderStep).join("") : `<p class="muted-copy">Tu peux ajouter des étapes pour structurer cet objectif.</p>`}<button class="button button-outline button-small" data-action="new-step" data-stone="${id}">＋ Ajouter une étape</button>${direct.length ? `<h3>Actions directement rattachées</h3>${direct.map(renderAction).join("")}` : ""}</div>`, `<button class="button button-outline" data-action="edit-stone" data-id="${stone.id}">Modifier</button><button class="button button-primary" data-action="new-action" data-stone="${stone.id}">＋ Ajouter une action</button>`));
-}
+function showStoneDetail(id) { closeModal(); navigate(`identity/${encodeURIComponent(id)}`); }
 
 function escapeHTML(value) { return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char])); }
 
@@ -754,7 +804,7 @@ function importData() {
       const stoneCount = pendingImport.stones.length;
       const actionCount = pendingImport.actions.length;
       const xpCount = pendingImport.xp.total;
-      showModal(modal("Vérifier la sauvegarde", `<div class="import-preview"><span class="import-icon">⬆</span><p>Cette sauvegarde contient :</p><ul><li><b>${stoneCount}</b> objectif(s)</li><li><b>${actionCount}</b> micro-action(s)</li><li><b>${xpCount}</b> XP</li></ul><p class="warning-copy">L’import remplacera toutes les données actuellement enregistrées sur cet appareil.</p></div>`, `<button class="button button-outline" data-action="close-modal">Annuler</button><button class="button button-primary" data-action="confirm-import">Remplacer et importer</button>`));
+      showModal(modal("Vérifier la sauvegarde", `<div class="import-preview"><span class="import-icon">⬆</span><p>Cette sauvegarde contient :</p><ul><li><b>${stoneCount}</b> identité(s)</li><li><b>${actionCount}</b> micro-action(s)</li><li><b>${xpCount}</b> XP</li></ul><p class="warning-copy">L’import remplacera toutes les données actuellement enregistrées sur cet appareil.</p></div>`, `<button class="button button-outline" data-action="close-modal">Annuler</button><button class="button button-primary" data-action="confirm-import">Remplacer et importer</button>`));
     } catch (error) { alert(error.message || "Impossible de lire cette sauvegarde."); }
   });
   input.click();
@@ -782,6 +832,8 @@ window.addEventListener("keydown", event => { if (event.key === "Escape") closeM
 window.addEventListener("beforeinstallprompt", event => { event.preventDefault(); installPrompt = event; render(); });
 window.addEventListener("appinstalled", () => { installPrompt = null; render(); toast("Un pas après l’autre est installé sur ton appareil.", "📲"); });
 
+function showUpdateStatus() { const el=document.querySelector("#update-check-status");if(el)el.textContent=updates?.status || ""; }
+
 function hasDraft() {
   return [...document.querySelectorAll('#app input, #app textarea, #app select, #modal-root input, #modal-root textarea, #modal-root select')].some(el => {
     if (el.type === 'checkbox' || el.type === 'radio') return el.checked !== el.defaultChecked;
@@ -796,7 +848,7 @@ window.addEventListener('storage', event => {
   veil.innerHTML = '<section><h2>Le compte a changé dans une autre fenêtre</h2><p>Recharge cette fenêtre pour continuer avec le bon compte. Tu peux exporter les données affichées avant de recharger.</p><button class="button" data-copy>Exporter</button><button class="button" data-reload>Recharger</button></section>';
   veil.querySelector('[data-copy]').onclick=exportData; veil.querySelector('[data-reload]').onclick=()=>location.reload(); document.body.append(veil);
 });
-initUpdates({hasDraft,flush:flushAll});
+updates=initUpdates({hasDraft,flush:flushAll,enabled:()=>state.preferences.autoUpdates !== false,onStatus:()=>showUpdateStatus()});
 render();
 cloudUI=initCloud({flush:flushAll,hasDraft:()=>hasDraft()||pendingWrites()>0||operations.size>0,apply:next=>{state=next;closeModal();render();},openProfile:()=>navigate('profile')});
 if(!scope()) addOnboarding();

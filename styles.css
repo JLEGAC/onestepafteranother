@@ -125,3 +125,27 @@ html[data-mode="dark"] .modal-backdrop{background:rgba(0,0,0,.72)}
 .account-veil {position:fixed;inset:0;z-index:2000;background:#000b;display:grid;place-items:center;padding:20px;}
 .account-veil section {max-width:500px;padding:25px;border-radius:20px;background:#f5faf6;color:#173e36;}
 [data-mode="dark"] .cloud-indicator,[data-mode="dark"] .update-banner {background:#23382e;color:#f5faf6;}
+
+/* Identity spaces: readable cards at every screen size. */
+.identity-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:20px}
+.identity-card,.identity-pillar,.identity-step {border:1px solid var(--line);border-radius:22px;background:var(--white);overflow:hidden;margin:14px 0;color:inherit}
+.identity-card-main {display:block;width:100%;text-align:left;padding:24px;color:inherit;background:none;border:0;cursor:pointer;font:inherit}
+.identity-card-main h2 {margin:10px 0}.identity-card-main p,.identity-intro p {white-space:pre-line;line-height:1.6}
+.identity-symbol {font-size:2rem}.identity-card-main small,.identity-card-main b {display:block;margin-top:18px}
+.pillar-chips {display:flex;gap:6px;flex-wrap:wrap}.pillar-chips span,.context-badge {font-size:.8rem;color:var(--muted,#a9beb3)}
+.pillar-chips span {border:1px solid var(--line);padding:4px 10px;border-radius:20px}
+.identity-pillar>summary,.identity-step>summary {display:flex;justify-content:space-between;gap:12px;padding:20px;cursor:pointer;list-style:none}
+.identity-pillar>summary::-webkit-details-marker,.identity-step>summary::-webkit-details-marker {display:none}
+.identity-pillar>summary strong {font-size:1.2rem}.identity-pillar summary small {display:block;margin-top:8px;line-height:1.45}
+.identity-pillar[open]>summary>span:last-child,.identity-step[open]>summary>span:last-child {transform:rotate(180deg)}
+.pillar-content,.step-content {padding:0 18px 18px}.pillar-tools {text-align:right}.step-tools {display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;margin-bottom:16px}
+.identity-step .identity-step {border-radius:14px}.identity-step .action-card {margin:12px 0}
+.step-add {margin-top:18px}.dependency-note {border-left:3px solid #c6a052;padding:8px 12px;font-size:.9rem;line-height:1.5}
+.identity-habits {display:flex;flex-wrap:wrap;gap:10px}.identity-intro {margin:20px 0}.identity-intro h1 {overflow-wrap:anywhere}
+.victory-form {display:flex;flex-direction:column;gap:14px}.victory-form .inline-add input {width:100%}
+.context-badge {display:block;margin-top:6px}.profile-links {text-align:center;margin:24px 0;padding:16px}
+.install-banner {display:flex;align-items:center;gap:12px;padding:16px;border-radius:20px;flex-wrap:wrap}.install-banner>span:nth-child(2) {flex:1;min-width:200px}.install-banner b,.install-banner small {display:block;line-height:1.5}.install-banner small {margin-top:5px}
+button:disabled {opacity:.55;cursor:not-allowed}.step-tools button,.step-add button {min-height:44px}.identity-card-main:focus-visible,summary:focus-visible {outline:3px solid #b9d7c7;outline-offset:-4px}
+@media(max-width:600px) {.identity-grid{grid-template-columns:1fr}.identity-pillar>summary,.identity-step>summary{padding:16px}.pillar-content,.step-content{padding:0 10px 16px}.identity-intro .page-title-row{align-items:flex-start;flex-wrap:wrap}.identity-intro h1{font-size:1.9rem}.identity-step .action-buttons{flex-wrap:wrap}.profile-links{margin-bottom:20px}}
+
+@media(max-width:600px){.action-footer{align-items:flex-start;flex-direction:column}.action-buttons{flex-wrap:wrap}.page-title-row{flex-wrap:wrap}.identity-step .more-button{width:auto;min-width:44px;padding:6px}.identity-step .action-buttons .button{min-height:44px}}

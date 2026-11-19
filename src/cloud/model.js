@@ -14,7 +14,7 @@ export function mergeStates(base, local, remote) {
   if (!base) return { state: null, conflicts: ['Première connexion'] };
   const result = structuredClone(remote); const conflicts = [];
   // Related goals/steps/actions and XP are one unit: avoid inconsistent links or rewards.
-  const groups = [['stones','steps','actions','xp','habits','habitLogs','challenges','capsules','daily','weeks','reserveOrder'], ['profile'], ['preferences'], ['tools']];
+  const groups = [['stones','pillars','steps','actions','xp','habits','habitLogs','challenges','capsules','daily','weeks','reserveOrder'], ['profile'], ['preferences'], ['tools']];
   for (const keys of groups) {
     const pick = obj => Object.fromEntries(keys.map(k => [k, obj[k]]));
     const b=canonical(pick(base)), l=canonical(pick(local)), r=canonical(pick(remote));
@@ -22,6 +22,7 @@ export function mergeStates(base, local, remote) {
     if (r === b || l === r) for (const k of keys) result[k] = structuredClone(local[k]);
     else conflicts.push(keys[0]);
   }
+  result.schemaVersion = Math.max(base.schemaVersion || 4, local.schemaVersion || 4, remote.schemaVersion || 4);
   return { state: conflicts.length ? null : result, conflicts };
 }
 export function hasData(state, initial) { return !equal(state, initial); }

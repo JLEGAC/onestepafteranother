@@ -1,14 +1,15 @@
-import { createInitialState, normalizeState } from '../data.js';
+import { createInitialState, normalizeState, loadState } from '../data.js';
 import { readRecord, mutateRecord, readWorkspace, scope, setScope, flushWrites, pendingWrites, acceptRecord, acknowledge, backupRecord, removeAccountCache, releaseGuestCopy } from '../local-store.js';
 import { equal, mergeStates, hasData } from './model.js';
 import { packMedia, unpackMedia } from './media.js';
 
 export function createSyncEngine(client, hooks) {
+  const backedUpRemote = new Set();
   let session = null, running = false, paused = false, conflict = null, timer;
   let status = { kind: client ? 'connecting' : 'disabled', email: '', pending: false };
   const emit = (kind, extra={}) => { status = { ...status, kind, ...extra }; hooks.status(status); };
   const stillUser = uid => !paused && uid === scope() && uid === session?.user.id && uid === (localStorage.getItem('upa-active-user')||'');
-  async function apply(uid) { if (uid === scope()) hooks.apply(normalizeState((await readWorkspace(uid)) || createInitialState())); }
+  async function apply(uid) { if (uid === scope()) hooks.apply(await loadState()); }
   async function account(next) {
     if (paused) return;
     session = next;
@@ -34,13 +35,14 @@ export function createSyncEngine(client, hooks) {
     if (ensureError) throw ensureError;
     const {data,error} = await client.from('user_app_state').select('data,revision,schema_version').eq('user_id',uid).maybeSingle();
     if (error) throw error;
-    if (data?.schema_version > 4) throw new Error('Une version plus récente de Pas à Pas est nécessaire.');
+    if (data?.schema_version > 5) throw new Error('Une version plus récente de Pas à Pas est nécessaire.');
+    if(data && data.schema_version < 5 && !backedUpRemote.has(uid)) { await backupRecord(uid,data.data);backedUpRemote.add(uid); }
     return data ? { state:normalizeState(await unpackMedia(client,uid,data.data,local)), revision:data.revision } : null;
   }
   async function send(uid, record, expectedRevision) {
     const data = await packMedia(client,uid,record.state);
     if (!stillUser(uid)) return false;
-    const { data:result, error } = await client.rpc('upa_save_state', { p_owner:uid, p_data:data, p_expected_revision:expectedRevision, p_schema_version:4 });
+    const { data:result, error } = await client.rpc('upa_save_state', { p_owner:uid, p_data:data, p_expected_revision:expectedRevision, p_schema_version:5 });
     if (error) throw error;
     if (!result?.ok) { schedule(100); return false; }
     await acknowledge(uid, record, result.revision);
@@ -75,7 +77,7 @@ export function createSyncEngine(client, hooks) {
       if (hooks.hasDraft() || pendingWrites()) { emit('waiting',{pending:local.dirty}); return; }
       if (await acceptRecord(uid,local.localRev,remote.state,remote.state,remote.revision)) await apply(uid);
     } else {
-      const merged = mergeStates(local.base,local.state,remote.state);
+      const merged = mergeStates(local.base ? normalizeState(local.base) : null,normalizeState(local.state),remote.state);
       if (!merged.state) { conflict={uid,local,remote,initial:false}; emit('choice',{pending:true,conflict}); return; }
       if (hooks.hasDraft() || pendingWrites()) { emit('waiting',{pending:true}); return; }
       // Stage the merge locally before sending it, guarded against another tab's edit.

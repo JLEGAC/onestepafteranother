@@ -28,7 +28,7 @@ export function milestoneFor(state, action) {
   if (count === 1) return "Premier pas posé !";
   if ([5, 10, 25, 50, 100].includes(count)) return `${count} micro-actions accomplies !`;
   if (action.effort === "XXL") return "Un vrai défi relevé !";
-  return "Un objectif de plus sur ton chemin !";
+  return "Un pas de plus vers la personne que tu veux être !";
 }
 
 export const badgeCatalog = [

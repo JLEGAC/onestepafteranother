@@ -1,0 +1,66 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> un-pas-apres-lautre@0.4.0 test
+> node --test
+
+✔ migration, offline queue, reconnection, independent merge, conflicts and safe logout (63.509709ms)
+✔ merge independent profile and preference changes without losing either (4.325524ms)
+✔ concurrent habit rewards are a conflict, never duplicated or overwritten (0.59459ms)
+✔ deletion versus remote editing is not silently resurrected (0.544261ms)
+✔ state equality ignores only bookkeeping timestamps; future content remains significant (0.595379ms)
+✔ invalid image attributes cannot survive backup/cloud normalization (0.986222ms)
+✔ objective progress includes its reserve actions and rounds 8/13 to 62% (3.289481ms)
+✔ split and abandoned parent actions do not inflate the stone denominator (0.572268ms)
+✔ objective progress includes actions linked through its steps (0.502607ms)
+✔ XP events are idempotent and levels advance every 100 XP (0.608936ms)
+✔ action XP combines the 5 XP base with the effort bonus (0.524333ms)
+✔ week boundaries are Monday through Sunday (0.313785ms)
+✔ JSON export can be validated and restored (2.13557ms)
+✔ V1 data upgrades without dropping existing profile or gains (6.259909ms)
+✔ habit checks award XP once and the seventh Grand Chelem doubles its bonus (2.77137ms)
+✔ habit history can be edited immediately for past dates without XP (0.769173ms)
+✔ a linked habit doubles its daily point and the one-time Grand Chelem bonus (2.016321ms)
+✔ 21-day and 60-day linked habit streak milestones double their bonuses (3.907548ms)
+✔ challenge dates award progress once and an end bonus on completion (4.201066ms)
+✔ expired challenges stop blocking a new challenge without losing earned XP (3.026017ms)
+✔ capsule watch reward cannot be collected twice (0.439579ms)
+✔ month grid begins on Monday and includes every date (0.604136ms)
+✔ migration checkpoints the original scope once before persisting schema 5 (18.449239ms)
+✔ v4 migration preserves IDs, schedules, completed work, habits, XP and victory text; repeated migration is stable (12.768865ms)
+✔ direct dependencies block completion but allow ordered placement in the same week and block (3.225939ms)
+✔ rescheduling or removing a prerequisite must not invalidate a planned dependent (9.924041ms)
+✔ step prerequisite propagates to its substeps; completion and weekly inclusion require all prerequisite actions (0.769294ms)
+✔ cycles across action and step dependencies, self dependencies and nested substeps are refused (1.775368ms)
+✔ empty prerequisite requires explicit completion, and completed actions cannot acquire unfinished prerequisites (0.580002ms)
+✔ identity and step UI expose contextual editing, optional substep before actions and planning only on individual actions (3.423771ms)
+✔ victory form links only identities, submits after selector and profile alone contains public page links (1.987866ms)
+✔ legacy workspace, per-account state, durable dirty flag, in-flight edit, conflict and backups (37.263589ms)
+✔ a slot can contain several small actions and mix them with one larger action (1.9978ms)
+✔ rescheduling ignores the action itself and completed items do not occupy capacity (0.371616ms)
+✔ the full-day block follows the same capacity rule as timed blocks (0.640192ms)
+✔ precache completes without immediate activation; root aliases stay on one release (16.486637ms)
+✔ partial download does not leave an installable release cache (2.773081ms)
+✔ another open window prevents forced activation (1.857785ms)
+✔ old caches removed only after all live clients acknowledge the new release (5.28254ms)
+✔ a later installing or waiting release cache survives old-client acknowledgements and worker restarts (4.902864ms)
+✔ missing cache history never causes speculative deletion of another release (1.572876ms)
+✔ public HTML navigation serves its own document offline, including query strings (5.852008ms)
+✔ PostgreSQL: isolation, CAS conflicts, deletion freeze and cascade (4087.498481ms)
+✔ automatic check can be disabled; manual check always works and reports offline, available and failure states (4.773756ms)
+✔ V2 navigation targets render their page titles and primary actions (33.960111ms)
+✔ weekly cap omits review and reserve sections while the review form remains available (1.31247ms)
+✔ new navigation and dashboard follow the requested screen order (1.345612ms)
+✔ dashboard hides check-in captions behind accessible legends and aligns the choice rows (0.353699ms)
+✔ past habit controls are available without a 10-day unlock (0.861854ms)
+✔ Identity index opens dedicated spaces; habits retain their identity selector (0.6492ms)
+✔ Vision has resonance images; weekly cap, history, and accessible planning expose their controls (3.898374ms)
+✔ weekly review safely renders structured victories (0.251294ms)
+✔ latest interface choices keep objective symbol in its title and clean page headings (2.349823ms)
+ℹ tests 53
+ℹ suites 0
+ℹ pass 53
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4541.399479

@@ -1,6 +1,10 @@
-# Pas à Pas — PWA 0.3.0
+# Pas à Pas — PWA 0.4.0
 
 Application de développement personnel utilisable sur mobile et ordinateur, avec sauvegarde locale et connexion Google facultative via Supabase.
+
+## Version identités
+
+**Commence par [le guide 0.4.0](docs/VERSION_0.4.0.md)** : le script SQL de mise à jour Supabase doit être exécuté avant la mise en ligne. Le guide décrit aussi les dépendances, la migration et les limites des tests.
 
 ## Livrer cette version
 
@@ -47,7 +51,7 @@ Le workflow utilise Ubuntu 24.04 explicitement, installe les dépendances avec l
 
 ## Données, mises à jour et limites
 
-La base IndexedDB existante n’est pas effacée. L’espace local sans compte et les copies de chaque compte sont distincts. Une mise à jour ne modifie ni les préférences ni les données utilisateur.
+La base IndexedDB existante n’est pas effacée. L’espace local sans compte et les copies de chaque compte sont distincts. La version 0.4.0 migre la structure des objectifs vers les identités, après sauvegarde, en conservant les contenus existants.
 
 La synchronisation exige une application ouverte ou réouverte ; elle n’est pas garantie lorsque le système a fermé la PWA. Une session peut devoir être renouvelée après révocation ou effacement des données du navigateur. Sauvegarde JSON recommandée avant toute opération importante.
 

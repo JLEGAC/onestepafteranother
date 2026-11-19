@@ -1,4 +1,5 @@
-import { readWorkspace, writeWorkspace } from "./local-store.js";
+import { migrateIdentities } from "./identity.js";
+import { readWorkspace, writeWorkspace, backupRecord, scope } from "./local-store.js";
 const DB_NAME = "un-pas-apres-lautre";
 const DB_VERSION = 4;
 const STATE_KEY = "workspace";
@@ -28,10 +29,11 @@ export function newId(prefix = "id") {
 export function createInitialState() {
   const weekStart = mondayISO();
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     createdAt: new Date().toISOString(),
     profile: { vision: "", story: "", essentials: [], guides: [], resonance: [], resonanceImages: [] },
     stones: [],
+    pillars: [],
     steps: [],
     actions: [],
     weeks: [{ id: weekStart, start: weekStart, end: weekEndISO(weekStart), retro: null, objective: "" }],
@@ -41,7 +43,7 @@ export function createInitialState() {
     challenges: [],
     capsules: [],
     xp: { total: 0, events: [] },
-    preferences: { sound: false, reducedMotion: false, gentleReminders: true, theme: "forest", darkMode: false },
+    preferences: { autoUpdates: true, sound: false, reducedMotion: false, gentleReminders: true, theme: "forest", darkMode: false },
     reserveOrder: [],
     tools: []
   };
@@ -49,6 +51,12 @@ export function createInitialState() {
 
 export async function loadState() {
   const state = await readWorkspace();
+  if (state && (state.schemaVersion || 1) < 5) {
+    await backupRecord(scope(), state);
+    const migrated = normalizeState(state);
+    await writeWorkspace(migrated);
+    return migrated;
+  }
   return state ? normalizeState(state) : createInitialState();
 }
 export async function saveState(state) {
@@ -57,6 +65,8 @@ export async function saveState(state) {
 }
 
 export function normalizeState(input) {
+  if ((input.schemaVersion || 1) > 5) throw new Error("Mets à jour l’application pour ouvrir ces données.");
+  input = structuredClone(input);
   const base = createInitialState();
   const state = { ...base, ...input, profile: { ...base.profile, ...(input.profile || {}) }, xp: { ...base.xp, ...(input.xp || {}) } };
   state.stones = (Array.isArray(input.stones) ? input.stones : []).map(stone => {
@@ -85,8 +95,8 @@ export function normalizeState(input) {
   state.profile.resonance = Array.isArray(state.profile.resonance) ? state.profile.resonance : [];
   state.profile.resonanceImages = (Array.isArray(state.profile.resonanceImages) ? state.profile.resonanceImages : [])
     .filter(image => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=\r\n]+$/.test(image?.dataUrl || ""));
-  state.schemaVersion = 4;
-  return state;
+  state.schemaVersion = 5;
+  return migrateIdentities(state);
 }
 
 export function getCurrentWeek(state) {
@@ -109,7 +119,7 @@ export function stoneProgress(state, stoneId) {
 }
 
 export function exportObject(state) {
-  return { app: "un-pas-apres-lautre", exportVersion: 4, exportedAt: new Date().toISOString(), data: state };
+  return { app: "un-pas-apres-lautre", exportVersion: 5, exportedAt: new Date().toISOString(), data: state };
 }
 
 export function validateImport(parsed) {
@@ -119,7 +129,7 @@ export function validateImport(parsed) {
   if (!Array.isArray(parsed.data.stones) || !Array.isArray(parsed.data.actions)) {
     throw new Error("La sauvegarde est incomplète : objectifs ou actions manquants.");
   }
-  if (parsed.exportVersion !== undefined && ![1, 2, 3, 4].includes(parsed.exportVersion)) {
+  if (parsed.exportVersion !== undefined && ![1, 2, 3, 4, 5].includes(parsed.exportVersion)) {
     throw new Error("Cette sauvegarde provient d’une version plus récente de l’application.");
   }
   return normalizeState(parsed.data);

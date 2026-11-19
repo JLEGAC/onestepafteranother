@@ -22,7 +22,7 @@ test('migration, offline queue, reconnection, independent merge, conflicts and s
    if(name==='upa_ensure_account')return {error:null};
    assert.equal(args.p_owner,uid);
    if((remote?.revision||0)!==args.p_expected_revision)return {data:{ok:false}};
-   remote={data:structuredClone(args.p_data),revision:(remote?.revision||0)+1,schema_version:4};return {data:{ok:true,revision:remote.revision}};
+   remote={data:structuredClone(args.p_data),revision:(remote?.revision||0)+1,schema_version:args.p_schema_version};return {data:{ok:true,revision:remote.revision}};
   },
   from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:structuredClone(remote),error:null})})})})
  };

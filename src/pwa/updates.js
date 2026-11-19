@@ -1,5 +1,7 @@
-export function initUpdates({hasDraft,flush}) {
-  if(!('serviceWorker' in navigator))return;
+export function initUpdates({hasDraft,flush,enabled=()=>true,onStatus=()=>{}}) {
+  if(!('serviceWorker' in navigator))return {status:'Les mises à jour ne sont pas disponibles dans ce navigateur.',check:async()=>{}};
+  let status='', checking;
+  const report=message=>{status=message;onStatus(message);};
   const release=import.meta.url.match(/\/releases\/([^/]+)\//)?.[1] || 'development';
   const announce=()=>navigator.serviceWorker.controller?.postMessage({type:'RELEASE_READY',release});
   navigator.serviceWorker.ready.then(announce);
@@ -8,7 +10,7 @@ export function initUpdates({hasDraft,flush}) {
   const banner=document.createElement('aside'); banner.className='update-banner'; banner.hidden=true; banner.setAttribute('aria-label','Mise à jour de l’application');
   banner.innerHTML='<span role="status">Une mise à jour est disponible</span><button class="button button-primary button-small" data-update>Mettre à jour</button><button class="text-button" data-later>Plus tard</button>';
   document.body.append(banner);
-  const show=()=>{if(registration?.waiting&&!dismissed)banner.hidden=false;};
+  const show=()=>{if(registration?.waiting){report('Une mise à jour est disponible. Tu peux l’installer avec le bouton « Mettre à jour ».');if(!dismissed)banner.hidden=false;}};
   const watch=worker=>{worker?.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)show();});};
   banner.querySelector('[data-later]').onclick=()=>{dismissed=true;banner.hidden=true;};
   banner.querySelector('[data-update]').onclick=async()=>{
@@ -30,13 +32,35 @@ export function initUpdates({hasDraft,flush}) {
     announce();
     if(applying&&!reloaded){reloaded=true;location.reload();}
   });
-  async function check(force=false){
-    if(!registration||navigator.onLine===false||(!force&&Date.now()-lastCheck<60000))return;
-    lastCheck=Date.now(); try{await registration.update();show();}catch{/* offline is normal */}
+  async function check(manual=false){
+    if(!manual&&!enabled())return;
+    if(checking)return checking;
+    if(!manual&&Date.now()-lastCheck<60000)return;
+    if(navigator.onLine===false){report('Hors ligne : reconnecte-toi pour vérifier les mises à jour.');return;}
+    checking=(async()=>{
+      report('Vérification en cours…');
+      try {
+        await registered;
+        if(!registration)throw new Error('Enregistrement indisponible');
+        lastCheck=Date.now();if(manual)dismissed=false;
+        await registration.update();
+        const worker=registration.installing;
+        if(worker)await new Promise((resolve,reject)=>{
+          const timeout=setTimeout(()=>finish(new Error('Installation toujours en cours')),30000);
+          const listener=()=>{if(['installed','activated'].includes(worker.state))finish();else if(worker.state==='redundant')finish(new Error('Téléchargement interrompu'));};
+          function finish(error){clearTimeout(timeout);worker.removeEventListener('statechange',listener);error?reject(error):resolve();}
+          worker.addEventListener('statechange',listener);listener();
+        });
+        if(registration.waiting)show();else report('Ton application est à jour.');
+      }catch{report(navigator.onLine===false?'Hors ligne : la vérification n’a pas pu aboutir.':'Vérification impossible pour le moment. Réessaie dans quelques instants.');}
+    })();
+    try{await checking;}finally{checking=null;}
   }
-  navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>{
-    registration=reg;watch(reg.installing);reg.addEventListener('updatefound',()=>watch(reg.installing));show();check(true);
-  }).catch(()=>{});
+  const registered=navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>{
+    registration=reg;watch(reg.installing);reg.addEventListener('updatefound',()=>watch(reg.installing));show();
+  }).catch(()=>{report('Vérification impossible : le service de mise à jour n’est pas disponible.');});
+  registered.then(()=>check());
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)check();});
-  window.addEventListener('pageshow',()=>check()); window.addEventListener('online',()=>check(true));
+  window.addEventListener('pageshow',()=>check());window.addEventListener('online',()=>check());
+  return {check,get status(){return status;}};
 }

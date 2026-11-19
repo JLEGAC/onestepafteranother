@@ -37,7 +37,7 @@ test("weekly cap omits review and reserve sections while the review form remains
 test("new navigation and dashboard follow the requested screen order", () => {
   const state = createInitialState();
   const shell = appShell(state, "home");
-  for (const label of ["Accueil", "Vision", "Objectifs", "Cap Hebdo", "Outils", "Réserve"]) assert.ok(shell.includes(label));
+  for (const label of ["Accueil", "Vision", "Identités", "Cap Hebdo", "Outils", "Réserve"]) assert.ok(shell.includes(label));
   assert.equal(shell.includes("Cible"), false);
   assert.ok(shell.includes("./logo.svg"));
   const home = renderPage(state, "home");
@@ -45,7 +45,7 @@ test("new navigation and dashboard follow the requested screen order", () => {
   assert.ok(positions.every(position => position >= 0));
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
   assert.ok(home.includes("De quoi es-tu fier·e aujourd’hui ?"));
-  assert.ok(home.includes("Cette victoire te permettra-t-elle d’atteindre l’un de tes objectifs ?"));
+  assert.ok(home.includes("Quelle identité cette victoire nourrit-elle ?"));
 });
 
 test("dashboard hides check-in captions behind accessible legends and aligns the choice rows", () => {
@@ -76,16 +76,16 @@ test("past habit controls are available without a 10-day unlock", () => {
   selectHabitDate(todayISO());
 });
 
-test("Objectives page combines habits and objectives and hides the admin helper once the goal exists", () => {
+test("Identity index opens dedicated spaces; habits retain their identity selector", () => {
   const state = createInitialState();
   state.habits.push({ id: "walk", title: "Marcher", active: true, linkedStoneId: "goal" });
   state.stones.push({ id: "goal", title: "Écrire" });
   let html = renderPage(state, "cible");
-  assert.ok(html.includes("Mes objectifs et habitudes"));
-  assert.ok(html.includes("Marcher"));
-  assert.ok(html.includes("linked-star"));
-  assert.ok(html.includes("Ajouter une action"));
-  assert.ok(html.includes("Gestion, admin & obligations"));
+  assert.ok(html.includes("Mon identité"));
+  assert.ok(renderPage(state,"identity/goal").includes("Marcher"));
+  assert.ok(html.includes("stone-detail"));
+  assert.equal(html.includes("Ajouter une action"), false);
+  assert.equal(html.includes("Gestion, admin & obligations"), false);
   state.stones.push({ id: "admin", title: "Gestion admin et obligations" });
   html = renderPage(state, "cible");
   assert.equal(html.includes("Tu peux aussi créer un objectif"), false);
@@ -149,9 +149,9 @@ test("latest interface choices keep objective symbol in its title and clean page
   state.steps.push({ id: "step", stoneId: "goal", title: "Préparation" });
   const form = stoneForm(state.stones[0]);
   assert.ok(form.includes('name="title"'));
-  assert.equal(form.includes('name="icon"'), false);
-  assert.ok(form.includes('name="due" type="date"'));
-  assert.ok(form.includes("Bénéfice"));
+  assert.ok(form.includes('name="icon"'));
+  assert.equal(form.includes('name="due"'),false);
+  assert.ok(form.includes("Qu’est-ce que cette identité signifie pour moi ?"));
   assert.ok(actionForm(state, null, "goal", "step").includes('value="step" selected'));
   const tools = renderPage(state, "tools");
   for (const removed of ["TES RESSOURCES", "Un petit coup de pouce", "OUTILS MINUTE", "MES RESSOURCES V2"]) assert.equal(tools.includes(removed), false);

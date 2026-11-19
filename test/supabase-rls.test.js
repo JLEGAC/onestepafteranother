@@ -17,7 +17,7 @@ test('PostgreSQL: isolation, CAS conflicts, deletion freeze and cascade',async()
  const uid='00000000-0000-0000-0000-000000000001',other='00000000-0000-0000-0000-000000000002';
  const login=async id=>db.exec(`reset role;set role authenticated;select set_config('request.jwt.claim.sub','${id}',false);`);
  await login(uid);await db.query('select public.upa_ensure_account()');
- const data={stones:[],actions:[],profile:{vision:'privé'}};
+ const data={schemaVersion:4,stones:[],actions:[],profile:{vision:'privé'}};
  let r=await db.query('select public.upa_save_state($1,0,4,$2) result',[JSON.stringify(data),uid]);assert.equal(r.rows[0].result.ok,true);
  r=await db.query('select public.upa_save_state($1,0,4,$2) result',[JSON.stringify(data),uid]);assert.equal(r.rows[0].result.ok,false);
  await db.query('insert into storage.objects(name,bucket_id) values($1,$2)',[uid+'/photo','vision-images']);
@@ -27,6 +27,14 @@ test('PostgreSQL: isolation, CAS conflicts, deletion freeze and cascade',async()
  assert.equal((await db.query('select * from public.user_app_state')).rows.length,0);
  assert.equal((await db.query('select * from storage.objects')).rows.length,0);
  await db.exec(`reset role;set role anon;`);await assert.rejects(db.query('select * from public.user_app_state'));await assert.rejects(db.query('select public.upa_ensure_account()'));
+ await db.exec('reset role');
+ await db.exec(await readFile(new URL('../supabase/migrations/202611180001_identities.sql',import.meta.url),'utf8'));
+ await login(uid);
+ const migrated={...data,schemaVersion:5,pillars:[{id:'p',title:'Transmission'}],steps:[]};
+ r=await db.query('select public.upa_save_state($1,1,5,$2) result',[JSON.stringify(migrated),uid]);assert.equal(r.rows[0].result.ok,true);
+ await assert.rejects(db.query('select public.upa_save_state($1,2,4,$2)',[JSON.stringify(data),uid]),/jour/);
+ assert.deepEqual((await db.query('select data from public.user_app_state')).rows[0].data.pillars,migrated.pillars);
+ await assert.rejects(db.query('select public.upa_save_state($1,2,5,$2)',[JSON.stringify({...migrated,pillars:null}),uid]),/incomplète/);
  await db.exec(`reset role;update public.user_accounts set deletion_pending=true where user_id='${uid}';`);
  await login(uid);await assert.rejects(db.query('select public.upa_save_state($1,1,4,$2)',[JSON.stringify(data),uid]));assert.equal((await db.query('select * from public.user_app_state')).rows.length,0);
  await assert.rejects(db.query('insert into storage.objects(name,bucket_id) values($1,$2)',[uid+'/late','vision-images']));
