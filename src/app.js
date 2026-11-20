@@ -1,3 +1,4 @@
+import { bindSymbolPicker, symbolFields, symbolMark } from "./ui/symbol-picker.js";
 import { pillarForm, identityStepForm } from "./identity-views.js";
 import { blockers, dependencyError, editError, scheduleIssue, stepDone, stepActions } from "./identity.js";
 import { addXP, badgesFor, levelFor, milestoneFor, pointsForAction, themeRewards } from "./gamification.js";
@@ -234,6 +235,7 @@ function bindScheduleDragInteractions() {
 }
 
 function bindModalInteractions() {
+  bindSymbolPicker(modalRoot);
   modalRoot.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => handleAction(button.dataset.action, button.dataset)));
   const backdrop = modalRoot.querySelector(".modal-backdrop");
   const card = modalRoot.querySelector(".modal-card");
@@ -393,7 +395,7 @@ async function handleHabitHistoryToggle(id, date) {
 async function saveHabitForm(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
   const existing = state.habits.find(item => item.id === id);
-  const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), emoji: fd.get("emoji").trim() || "🌱", linkedStoneId: fd.get("linkedStoneId") || "", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
+  const record = { id: id || newId("habit"), title: fd.get("title").trim(), description: fd.get("description").trim(), ...symbolFields(fd,"emoji"), linkedStoneId: fd.get("linkedStoneId") || "", active: true, createdAt: existing?.createdAt || new Date().toISOString(), createdAtDate: existing?.createdAtDate || todayISO(), archivedAt: "" };
   if (existing) Object.assign(existing, record); else state.habits.unshift(record);
   await persist(); closeModal(); render(); celebrate(existing ? "Habitude mise à jour." : "Nouvelle habitude ajoutée · +1 XP, ou +2 si elle est liée à une identité.");
 }
@@ -590,9 +592,10 @@ async function saveStoneForm(event) {
   event.preventDefault(); const fd = new FormData(event.currentTarget); const id = fd.get("id");
   let title = fd.get("title").trim();
   const leadingEmoji = title.match(/^\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*/u)?.[0];
-  const icon = leadingEmoji || fd.get("icon")?.trim() || "🎯";
+  const appearance = symbolFields(fd);
+  if (leadingEmoji && (!appearance.icon || appearance.icon === "🎯")) Object.assign(appearance, { icon:leadingEmoji, iconColor:"" });
   if (leadingEmoji) title = title.slice(leadingEmoji.length).trimStart();
-  const stone = { id: id || newId("stone"), title, icon, description: fd.get("description")?.trim() || "", ...(fd.has("anchor") ? {anchor:fd.get("anchor").trim()} : {}) };
+  const stone = { id: id || newId("stone"), title, ...appearance, description: fd.get("description")?.trim() || "", ...(fd.has("anchor") ? {anchor:fd.get("anchor").trim()} : {}) };
   if(!title){formError("Donne un nom à cette identité.");return;}
   const existing = state.stones.find(item => item.id === id);
   if (existing) Object.assign(existing, stone); else state.stones.unshift(stone);
@@ -602,7 +605,7 @@ async function saveStoneForm(event) {
 async function savePillarForm(event) {
   event.preventDefault();const fd=new FormData(event.currentTarget);
   const id=fd.get('id')||newId('pillar');const existing=state.pillars.find(p=>p.id===id);
-  const record={id,stoneId:fd.get('stoneId'),title:fd.get('title').trim(),description:fd.get('description').trim()};
+  const record={id,stoneId:fd.get('stoneId'),...symbolFields(fd),title:fd.get('title').trim(),description:fd.get('description').trim()};
   if(!record.title)return formError('Donne un nom à ce pilier.');
   if(existing)Object.assign(existing,record);else state.pillars.push(record);
   disclosures.set(id,true);await persist();closeModal();render();toast('Pilier enregistré.');
@@ -610,7 +613,7 @@ async function savePillarForm(event) {
 async function saveStepForm(event) {
   event.preventDefault();const fd=new FormData(event.currentTarget);const id=fd.get('id')||newId('step');
   const existing=state.steps.find(s=>s.id===id);
-  const record={...existing,id,stoneId:fd.get('stoneId'),pillarId:fd.get('pillarId'),parentStepId:fd.get('parentStepId')||'',title:fd.get('title').trim(),description:fd.get('description').trim(),dependsOnStepId:fd.get('dependsOnStepId')||''};
+  const record={...existing,id,stoneId:fd.get('stoneId'),pillarId:fd.get('pillarId'),parentStepId:fd.get('parentStepId')||'',...symbolFields(fd),title:fd.get('title').trim(),description:fd.get('description').trim(),dependsOnStepId:fd.get('dependsOnStepId')||''};
   if(!record.title)return formError('Précise le résultat à atteindre.');
   const pillar=state.pillars.find(p=>p.id===record.pillarId&&p.stoneId===record.stoneId);if(!pillar)return formError('Choisis un pilier.');
   const parent=state.steps.find(s=>s.id===record.parentStepId);if(parent)record.pillarId=parent.pillarId;
@@ -781,7 +784,7 @@ function startBreathing() {
 
 function showPastWins() {
   const wins = Object.entries(state.daily).sort(([a], [b]) => b.localeCompare(a)).flatMap(([date, day]) => (day.wins || []).map(win => ({ date, win }))).slice(0, 12);
-  showModal(modal("Mes victoires", wins.length ? `<div class="past-wins">${wins.map(item => { const win = typeof item.win === "string" ? { text: item.win } : (item.win || {}); const linked = win.relatedType === "stone" ? state.stones.find(stone => stone.id === win.relatedId) : win.relatedType === "action" ? state.actions.find(action => action.id === win.relatedId) : null; const date = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(new Date(`${item.date}T12:00:00`)); return `<div class="win-item"><span>✦</span><div>${escapeHTML(win.text)}${linked ? `<small>${win.relatedType === "stone" ? "🎯" : "↳"} ${escapeHTML(linked.title)}</small>` : ""}<small>${date}</small></div></div>`; }).join("")}</div>` : `<div class="empty-card slim"><p>Ton livre d’or se remplit au fil de tes journées. Note une petite victoire depuis l’accueil.</p></div>`));
+  showModal(modal("Mes victoires", wins.length ? `<div class="past-wins">${wins.map(item => { const win = typeof item.win === "string" ? { text: item.win } : (item.win || {}); const linked = win.relatedType === "stone" ? state.stones.find(stone => stone.id === win.relatedId) : win.relatedType === "action" ? state.actions.find(action => action.id === win.relatedId) : null; const date = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(new Date(`${item.date}T12:00:00`)); return `<div class="win-item"><span>✦</span><div>${escapeHTML(win.text)}${linked ? `<small>${win.relatedType === "stone" ? symbolMark(linked,"icon","🎯") : "↳"} ${escapeHTML(linked.title)}</small>` : ""}<small>${date}</small></div></div>`; }).join("")}</div>` : `<div class="empty-card slim"><p>Ton livre d’or se remplit au fil de tes journées. Note une petite victoire depuis l’accueil.</p></div>`));
 }
 
 function exportData() {

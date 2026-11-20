@@ -72,7 +72,7 @@ export function normalizeState(input) {
   state.stones = (Array.isArray(input.stones) ? input.stones : []).map(stone => {
     const title = String(stone.title || "");
     const leadingEmoji = title.match(/^\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*/u)?.[0];
-    return leadingEmoji ? { ...stone, title: title.slice(leadingEmoji.length).trimStart(), icon: leadingEmoji } : { ...stone, icon: stone.icon || "🎯" };
+    return leadingEmoji ? { ...stone, title: title.slice(leadingEmoji.length).trimStart(), icon: leadingEmoji } : { ...stone, icon: stone.icon ?? "🎯" };
   });
   state.steps = Array.isArray(input.steps) ? input.steps : [];
   state.actions = Array.isArray(input.actions) ? input.actions : [];

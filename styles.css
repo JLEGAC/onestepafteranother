@@ -149,3 +149,23 @@ button:disabled {opacity:.55;cursor:not-allowed}.step-tools button,.step-add but
 @media(max-width:600px) {.identity-grid{grid-template-columns:1fr}.identity-pillar>summary,.identity-step>summary{padding:16px}.pillar-content,.step-content{padding:0 10px 16px}.identity-intro .page-title-row{align-items:flex-start;flex-wrap:wrap}.identity-intro h1{font-size:1.9rem}.identity-step .action-buttons{flex-wrap:wrap}.profile-links{margin-bottom:20px}}
 
 @media(max-width:600px){.action-footer{align-items:flex-start;flex-direction:column}.action-buttons{flex-wrap:wrap}.page-title-row{flex-wrap:wrap}.identity-step .more-button{width:auto;min-width:44px;padding:6px}.identity-step .action-buttons .button{min-height:44px}}
+
+.symbol-picker [hidden]{display:none!important}
+.symbol-picker .symbol-label{font-weight:600;margin:0 0 6px}
+.symbol-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.symbol-picker [data-symbol-color]{margin-top:10px}
+.symbol-panel{margin:8px 0;padding:12px;display:grid;gap:8px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}
+.symbol-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:5px;max-height:190px;overflow:auto;padding:3px}
+.symbol-grid button{min-height:44px;min-width:0;font-size:1.3rem;border:1px solid var(--line);border-radius:8px;background:var(--white)}
+.symbol-grid button:hover,.symbol-grid button[aria-pressed="true"]{background:var(--green-pale)}
+.chosen-symbol{display:inline-block}
+.symbol-ink-auto{color:var(--green-2)}
+.symbol-ink-gold{color:#a36513}.symbol-ink-green{color:#327447}.symbol-ink-blue{color:#2364a5}.symbol-ink-purple{color:#744ab1}.symbol-ink-rose{color:#ae4665}
+:root[data-theme="dark"] .symbol-ink-gold{color:#efbd67}
+:root[data-theme="dark"] .symbol-ink-green{color:#88c998}
+:root[data-theme="dark"] .symbol-ink-blue{color:#8fc5fb}
+:root[data-theme="dark"] .symbol-ink-purple{color:#c3a6f4}
+:root[data-theme="dark"] .symbol-ink-rose{color:#f1a0b6}
+.dropbox-privacy{margin-top:12px;font-size:.9rem;line-height:1.5}
+.dropbox-privacy summary{cursor:pointer;font-weight:600;margin-bottom:6px}
+.dropbox-privacy p{margin:0 0 8px}

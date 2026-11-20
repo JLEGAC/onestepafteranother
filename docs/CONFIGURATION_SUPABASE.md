@@ -5,13 +5,15 @@
 Dans Profil, l'utilisateur peut choisir Supabase ou Dropbox. Un seul fournisseur est actif à la fois. Pour activer Dropbox dans une version publiée :
 
 1. Dans Dropbox App Console, crée une application avec l'accès **App folder**.
-2. Active les scopes `files.content.read` et `files.content.write`.
+2. Active les scopes `files.metadata.read`, `files.content.read` et `files.content.write`.
 3. Ajoute l'URI de redirection exacte `https://jlegac.github.io/onestepafteranother/` dans les réglages OAuth de l'application Dropbox.
 4. Copie uniquement l'App key publique dans `dropboxAppKey` de `src/cloud/config.js`, puis reconstruis et publie la PWA. N'ajoute aucun App secret.
 
 Dropbox stocke un état JSON complet dans le dossier de l'application, une copie `pas-a-pas-latest.json` et des versions datées (20 maximum). Les sauvegardes incluent les images de Vision. Une sauvegarde automatique est lancée après les modifications, avec un délai de regroupement. La restauration affiche le contenu avant confirmation et crée une copie locale de l'état remplacé. L'application vérifie la dernière sauvegarde à l'ouverture pour permettre de récupérer le travail sur un autre appareil.
 
 Le jeton OAuth de Dropbox est conservé localement par le navigateur afin de renouveler l'autorisation. Il n'est pas inclus dans les fichiers de sauvegarde.
+
+Si tu avais déjà connecté Dropbox avant l'ajout de `files.metadata.read`, déconnecte puis reconnecte ton compte depuis le Profil après avoir publié cette version. Cela renouvelle le jeton avec les trois autorisations requises.
 
 Cette archive contient le code et les règles de sécurité, mais aucun projet Supabase n’a été créé ou configuré à ta place. Le mode local fonctionne tant que `src/cloud/config.js` reste vide.
 

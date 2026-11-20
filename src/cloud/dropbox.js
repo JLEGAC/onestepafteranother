@@ -31,7 +31,10 @@ async function api(path,body,content=false) {
   const bearer=await accessToken();
   const response=await fetch(`https://api.dropboxapi.com/2/${path}`,{method:'POST',headers:{Authorization:`Bearer ${bearer}`,'Content-Type':content?'application/octet-stream':'application/json',...(content?{'Dropbox-API-Arg':JSON.stringify(body)}:{})},body:content?body:JSON.stringify(body)});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error_summary||`Erreur Dropbox (${response.status}).`);
+  if (!response.ok) {
+    if (data.error?.['.tag'] === 'missing_scope') throw new Error('Autorisation Dropbox manquante. Déconnecte puis reconnecte ton compte Dropbox.');
+    throw new Error(data.error_summary || `Erreur Dropbox (${response.status}).`);
+  }
   return data;
 }
 export async function connectDropbox() {
@@ -41,7 +44,7 @@ export async function connectDropbox() {
   localStorage.setItem(VERIFIER_KEY,verifier);
   const redirect=location.origin+location.pathname;
   const url=new URL('https://www.dropbox.com/oauth2/authorize');
-  Object.entries({client_id:cloudConfig.dropboxAppKey,response_type:'code',code_challenge:challenge,code_challenge_method:'S256',token_access_type:'offline',scope:'files.content.read files.content.write',redirect_uri:redirect}).forEach(([k,v])=>url.searchParams.set(k,v));
+  Object.entries({client_id:cloudConfig.dropboxAppKey,response_type:'code',code_challenge:challenge,code_challenge_method:'S256',token_access_type:'offline',scope:'files.metadata.read files.content.read files.content.write',redirect_uri:redirect}).forEach(([k,v])=>url.searchParams.set(k,v));
   location.assign(url.href);
 }
 export async function finishDropboxOAuth() {
@@ -63,11 +66,18 @@ async function download(path) {
   const bearer=await accessToken();
   const response=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:`Bearer ${bearer}`,'Dropbox-API-Arg':JSON.stringify({path})}});
   if(!response.ok){const err=await response.json().catch(()=>({}));throw new Error(err.error_summary||`Erreur Dropbox (${response.status}).`);}
-  return response.json();
+  // files/download returns the file bytes as the response body, not a JSON API envelope.
+  return response.text();
 }
 export async function listDropboxBackups() {
-  const result=await api('files/list_folder',{path:'',recursive:false,include_deleted:false});
-  return result.entries.filter(e=>e['.tag']==='file'&&e.name.startsWith('pas-a-pas-')&&e.name.endsWith('.json')).sort((a,b)=>b.name.localeCompare(a.name));
+  let result=await api('files/list_folder',{path:'',recursive:false,include_deleted:false});
+  const entries=[...result.entries];
+  while(result.has_more) {
+    result=await api('files/list_folder/continue',{cursor:result.cursor});
+    entries.push(...result.entries);
+  }
+  return entries.filter(e=>e['.tag']==='file' && /^pas-a-pas-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.json$/.test(e.name))
+    .sort((a,b)=>b.name.localeCompare(a.name));
 }
 export async function saveDropboxSnapshot(state) {
   const stamp=new Date().toISOString().replace(/[:.]/g,'-');

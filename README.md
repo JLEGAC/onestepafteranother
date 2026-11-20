@@ -1,6 +1,12 @@
-# Pas à Pas — PWA 0.4.0
+# Pas à Pas — PWA 0.5.1
 
 Application de développement personnel utilisable sur mobile et ordinateur, avec sauvegarde locale et connexion Google facultative via Supabase.
+
+## Version 0.5.1
+
+- Dropbox : lecture des sauvegardes corrigée et autorisation de lister les versions. Après publication, déconnecte puis reconnecte Dropbox dans le Profil si tu l’utilisais déjà.
+- Le Profil et la page de confidentialité expliquent ce qui est transmis en mode Dropbox.
+- Identités, piliers, étapes et habitudes : émojis et symboles monochromes recolorables, disponibles hors connexion.
 
 ## Version identités
 
