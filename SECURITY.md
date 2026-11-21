@@ -6,7 +6,7 @@ Je traite en priorité les signalements concernant la [version actuellement publ
 
 ## Signaler une faille en privé
 
-Si tu découvres un problème qui pourrait permettre d'accéder aux données d'une autre personne, d'en modifier le contenu sans autorisation ou de contourner une protection, écris-moi directement à **legacjeremy@gmail.com(mailto:legacjeremy@gmail.com)** avec l'objet « Sécurité — Un pas après l'autre ».
+Si tu découvres un problème qui pourrait permettre d'accéder aux données d'une autre personne, d'en modifier le contenu sans autorisation ou de contourner une protection, écris-moi directement à **[legacjeremy@gmail.com](mailto:legacjeremy@gmail.com)** avec l'objet « Sécurité — Un pas après l'autre ».
 
 Indique si possible :
 
