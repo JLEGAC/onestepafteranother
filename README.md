@@ -1,42 +1,39 @@
-# Pas à Pas — PWA 0.5.1
+# Un pas après l'autre
 
-Application de développement personnel utilisable sur mobile et ordinateur, avec sauvegarde locale et connexion Google facultative via Supabase.
+Une application pour clarifier ce qui compte pour toi, transformer tes objectifs en petites étapes et installer des habitudes à ton rythme.
 
-## Version 0.5.1
+**[Ouvrir l'application](https://jlegac.github.io/onestepafteranother/)**
 
-- Dropbox : lecture des sauvegardes corrigée et autorisation de lister les versions. Après publication, déconnecte puis reconnecte Dropbox dans le Profil si tu l’utilisais déjà.
-- Le Profil et la page de confidentialité expliquent ce qui est transmis en mode Dropbox.
-- Identités, piliers, étapes et habitudes : émojis et symboles monochromes recolorables, disponibles hors connexion.
+## À l'origine du projet
 
-## Version identités
+Un grand merci à ma femme, **Délia Le Gac**, qui est à l'origine de ce projet. C'est son idée qui a donné naissance à l'application : aider chacun à trouver ce qui compte pour lui et à avancer à son rythme, par de petits pas concrets.
 
-**Commence par [le guide 0.4.0](docs/VERSION_0.4.0.md)** : le script SQL de mise à jour Supabase doit être exécuté avant la mise en ligne. Le guide décrit aussi les dépendances, la migration et les limites des tests.
+Retrouve ses articles, ses livres et ses outils sur son site [Un pas après l'autre](https://unpasapreslautre.fr/).
 
-## Livrer cette version
+## Ce que tu peux faire
 
-1. Exporte d’abord ta sauvegarde JSON dans **Profil** sur l’application actuelle.
-2. Remplace les fichiers du dépôt par ceux de cette archive, y compris `.github/workflows/deploy.yml`.
-3. Supprime du dépôt `android-widget/` et `.github/workflows/widget-android.yml` s’ils existent encore : déposer un ZIP ne supprime pas les anciens fichiers automatiquement.
-4. Pour activer Google et le cloud, suis [le guide Supabase](docs/CONFIGURATION_SUPABASE.md). Sans configuration, l’application reste utilisable en mode local.
-5. Dans GitHub → Settings → Pages, choisis **GitHub Actions**. Le workflow teste et construit le site dans `_site/`, puis publie ce dossier.
+- Définir ta vision et les identités que tu souhaites incarner.
+- Découper tes objectifs en étapes concrètes et choisir tes priorités de la semaine dans **Cap Hebdo**.
+- Suivre tes habitudes et garder une trace de tes victoires.
+- Personnaliser tes identités, piliers, étapes et habitudes avec des émojis ou des symboles recolorables.
 
-**Aucune clé secrète ne doit être ajoutée au navigateur ni au dépôt.** Seules l’URL du projet Supabase et sa clé publique vont dans `src/cloud/config.js`.
+## Installation et données
 
-## Ce qui change
+Tu peux utiliser l'application directement sur mobile ou ordinateur. Si ton navigateur le propose, tu peux aussi l'installer depuis son menu ou l'ajouter à ton écran d'accueil. Après un premier chargement en ligne, les fonctions locales sont accessibles hors connexion.
 
-- PWA uniquement : retrait du compagnon Android et de son workflow. Empreintes, icônes et raccourcis Habitudes, Cap Hebdo, Vision et Victoires conservés. Le menu d’appui long dépend du navigateur et du système ; aucun widget Android natif n’est fourni.
-- Compte Google facultatif dans **Profil → Mon compte et mes données**, session persistante et déconnexion.
-- Données conservées sur l’appareil ; envoi au cloud après modification et au retour du réseau. Un indicateur ouvre le compte et affiche l’état réel de synchronisation.
-- Première connexion avec choix explicite pour transférer les données locales. Si le cloud contient une autre version, aucune version n’est écrasée sans choix ; des sauvegardes locales exportables sont créées.
-- Fusion automatique limitée aux domaines indépendants. Deux modifications concurrentes des objectifs/actions/habitudes/XP demandent un choix, pour éviter les doublons et liens incohérents.
-- Images de Vision dans un espace Supabase privé ; suppression du compte et de ses données via une fonction serveur protégée.
-- Vérification non bloquante des mises à jour à l’ouverture et au retour dans l’application. Bandeau « Mettre à jour / Plus tard », protection des saisies, attente des écritures locales et caches par version.
+Aucun compte n'est nécessaire pour utiliser le mode local. Dans **Profil**, tu peux exporter une copie JSON de tes données et, si tu le souhaites, utiliser **Supabase avec une connexion Google** ou **Dropbox**. Un seul service cloud est actif à la fois. L'accès Dropbox est limité au dossier dédié à l'application.
 
-Les parcours métier existants sont conservés : Vision, objectifs et étapes, habitudes et historique modifiable, Cap Hebdo, Réserve, victoires, outils, bilans, défis, capsules, XP et thèmes.
+[Lire la politique de confidentialité](https://jlegac.github.io/onestepafteranother/confidentialite.html)
 
-## Lancer et vérifier
+## Retours et contributions
 
-Node.js 24 est utilisé dans le workflow.
+[🐛 Signaler un bug](https://github.com/JLEGAC/onestepafteranother/issues/new?template=bug.yml) · [💡 Proposer une amélioration](https://github.com/JLEGAC/onestepafteranother/issues/new?template=enhancement.yml)
+
+Pour savoir quoi joindre à un signalement ou comment proposer un changement, consulte le [guide de contribution](CONTRIBUTING.md).
+
+## Développement local
+
+Avec Node.js 24 :
 
 ```bash
 npm ci
@@ -46,21 +43,17 @@ npm run build
 python3 -m http.server 4173 --directory _site
 ```
 
-Ouvre `http://localhost:4173`. L’installation et le service worker nécessitent HTTPS ou localhost. Pour tester réellement le mode hors connexion, sers **_site/**, pas les sources : le service worker source est volontairement minimal, les fichiers versionnés sont produits par le build.
+Ouvre [localhost:4173](http://localhost:4173). Pour vérifier l'installation et le fonctionnement hors connexion, utilise le site généré dans `_site/` : le build y produit le service worker et ses fichiers de cache.
+
+Pour les tests navigateur, après le build :
 
 ```bash
 npx playwright install --with-deps chromium
 npm run test:browser
 ```
 
-Le workflow utilise Ubuntu 24.04 explicitement, installe les dépendances avec le lockfile, effectue les tests navigateur et génère deux captures pour le manifeste.
+- [Mise en ligne sur GitHub Pages](docs/MISE_EN_LIGNE.md)
+- [Configuration de Supabase](docs/CONFIGURATION_SUPABASE.md) et [migration des identités pour une installation existante](docs/VERSION_0.4.0.md)
+- [Audit et validation](docs/AUDIT_ET_VALIDATION.md)
 
-## Données, mises à jour et limites
-
-La base IndexedDB existante n’est pas effacée. L’espace local sans compte et les copies de chaque compte sont distincts. La version 0.4.0 migre la structure des objectifs vers les identités, après sauvegarde, en conservant les contenus existants.
-
-La synchronisation exige une application ouverte ou réouverte ; elle n’est pas garantie lorsque le système a fermé la PWA. Une session peut devoir être renouvelée après révocation ou effacement des données du navigateur. Sauvegarde JSON recommandée avant toute opération importante.
-
-Lors de la toute première transition depuis l’ancien service worker, ferme les anciennes fenêtres puis rouvre la PWA connectée. Les mises à jour suivantes utilisent le nouveau bandeau. Le choix « Plus tard » dure pour l’ouverture courante.
-
-Consulte [l’audit et le bilan des tests](docs/AUDIT_ET_VALIDATION.md) pour les choix techniques, la gestion des conflits et les limites de validation.
+Le mode local permet de développer sans configurer de service cloud. Ne place jamais de clé secrète ou de jeton d'accès dans `src/cloud/config.js` ou dans le dépôt.
