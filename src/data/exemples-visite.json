@@ -1,0 +1,124 @@
+[
+  {
+    "id": "retrouver-energie",
+    "titre": "Retrouver de l'énergie",
+    "resume": "Faire un peu de place au mouvement dans une semaine ordinaire.",
+    "usages": ["personnel"],
+    "vision": "Je veux me sentir plus en forme au quotidien.",
+    "identite": "Je prends soin de mon énergie.",
+    "pilier": "Bouger régulièrement",
+    "etape": "Faire une première marche sur ma pause déjeuner.",
+    "microAction": {
+      "intitule": "Marcher 10 minutes après le déjeuner",
+      "critereReussite": "J'ai marché 10 minutes, même si je n'ai pas fait le trajet prévu."
+    },
+    "capHebdo": {
+      "jour": "mercredi",
+      "moment": "Après le déjeuner"
+    },
+    "approfondissement": {
+      "habitude": "Marcher 10 minutes après le déjeuner, deux fois par semaine.",
+      "reserve": "Repérer un autre trajet de marche près de chez moi.",
+      "boussole": "Est-ce que je garde ma pause pour marcher ou est-ce que j'y ajoute une autre course ?",
+      "victoire": "J'ai fait ma première marche malgré une journée chargée.",
+      "bilan": "Le midi me convient. La semaine prochaine, j'essaie aussi le vendredi."
+    }
+  },
+  {
+    "id": "reprendre-projet-creatif",
+    "titre": "Reprendre un projet créatif",
+    "resume": "Revenir à une histoire laissée de côté en retrouvant le plaisir d'écrire.",
+    "usages": ["personnel"],
+    "vision": "Je veux garder une place pour la création dans mes semaines.",
+    "identite": "Je fais de la place à mes idées créatives.",
+    "pilier": "Écriture",
+    "etape": "Trouver une scène par laquelle reprendre mon histoire.",
+    "microAction": {
+      "intitule": "Noter trois idées de scènes",
+      "critereReussite": "J'ai trois idées sur la page, même si elles sont encore brouillonnes."
+    },
+    "capHebdo": {
+      "jour": "samedi",
+      "moment": "Le matin"
+    }
+  },
+  {
+    "id": "alleger-quotidien",
+    "titre": "Alléger le quotidien à la maison",
+    "resume": "Éviter de chercher une idée de dîner au dernier moment.",
+    "usages": ["personnel"],
+    "vision": "Je veux des soirées plus simples à la maison.",
+    "identite": "Je simplifie mon organisation.",
+    "pilier": "Repas de la semaine",
+    "etape": "Avoir deux repas de secours pour les soirs chargés.",
+    "microAction": {
+      "intitule": "Noter deux idées de repas faciles",
+      "critereReussite": "J'ai deux idées à préparer avec ce que j'ai déjà."
+    },
+    "capHebdo": {
+      "jour": "jeudi",
+      "moment": "En début de soirée"
+    }
+  },
+  {
+    "id": "preparer-reunion",
+    "titre": "Préparer une réunion utile",
+    "resume": "Arriver avec une question claire sur laquelle le groupe peut décider.",
+    "usages": ["professionnel"],
+    "vision": "Je veux que mes réunions débouchent sur des décisions concrètes.",
+    "identite": "J'aide le groupe à savoir ce qu'il doit décider.",
+    "pilier": "Préparation des réunions",
+    "etape": "Clarifier la décision attendue pour la prochaine réunion.",
+    "microAction": {
+      "intitule": "Écrire la question à trancher",
+      "critereReussite": "La question tient en une phrase et indique clairement ce qu'il faut décider."
+    },
+    "capHebdo": {
+      "jour": "mardi",
+      "moment": "En début de matinée"
+    },
+    "approfondissement": {
+      "habitude": "Avant chaque réunion que j'organise, noter le résultat que j'en attends.",
+      "reserve": "Créer un modèle réutilisable d'ordre du jour.",
+      "boussole": "Est-ce que ce point demande une discussion en réunion ou un simple message à lire ?",
+      "victoire": "La réunion s'est terminée avec une décision claire et une personne chargée de la suite.",
+      "bilan": "La question était claire, mais une information manquait. La prochaine fois, je l'enverrai avant la réunion."
+    }
+  },
+  {
+    "id": "debloquer-dossier",
+    "titre": "Débloquer un dossier qui stagne",
+    "resume": "Identifier ce qui manque pour que le dossier puisse avancer.",
+    "usages": ["professionnel"],
+    "vision": "Je veux faire avancer mes dossiers sans laisser les blocages s'accumuler.",
+    "identite": "Je clarifie ce qui bloque et je propose la prochaine action.",
+    "pilier": "Suivi des dossiers",
+    "etape": "Identifier ce qui bloque la validation du dossier.",
+    "microAction": {
+      "intitule": "Lister les informations manquantes",
+      "critereReussite": "Pour chaque information manquante, j'ai noté à qui la demander."
+    },
+    "capHebdo": {
+      "jour": "mercredi",
+      "moment": "En début d'après-midi"
+    }
+  },
+  {
+    "id": "travail-de-fond",
+    "titre": "Garder du temps pour le travail de fond",
+    "resume": "Dégager un moment pour une tâche importante qu'on repousse.",
+    "usages": ["professionnel"],
+    "vision": "Je veux avancer sur les sujets importants même quand mes journées sont chargées.",
+    "identite": "Je réserve du temps à mes priorités.",
+    "pilier": "Organisation de ma semaine",
+    "etape": "Trouver un premier créneau de concentration.",
+    "microAction": {
+      "intitule": "Bloquer 30 minutes dans mon agenda pour avancer sur mon dossier prioritaire",
+      "critereReussite": "Un créneau est réservé et son intitulé dit sur quel dossier je vais travailler."
+    },
+    "capHebdo": {
+      "jour": "lundi",
+      "moment": "Le matin, pour réserver le créneau"
+    }
+  }
+]
