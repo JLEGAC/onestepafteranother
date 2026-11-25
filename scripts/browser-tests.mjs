@@ -34,7 +34,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const url=`http://127.0.0.1:${server.address().port}/`;
-const browser=await chromium.launch({headless:true,...(existsSync('/usr/bin/chromium')?{executablePath:'/usr/bin/chromium',args:['--no-sandbox']}:{} )});
+const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox']}:{} )});
 const context=await browser.newContext({viewport:{width:390,height:844}});
 const errors=[];context.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));
 let stage='initialisation';
@@ -69,12 +69,20 @@ async function diagnostics(error){
 let page=await context.newPage();
 const ready=async p=>{await p.waitForSelector('#cloud-indicator');};
 try {
- await page.goto(url);await page.waitForSelector('#vision-form input');
+ await page.goto(url+'?installer=1');await page.getByRole('dialog').waitFor();
+ await page.getByRole('button',{name:'Fermer',exact:true}).click();
+ await page.goto(url);await page.getByRole('button',{name:'Me guider',exact:true}).click();
+ await page.getByRole('button',{name:'Personnel',exact:true}).click();
+ await page.getByRole('button',{name:'Choisir pour moi'}).click();
+ await page.locator('.tour-card [data-guide="next"]').click();
+ await page.locator('.tour-card [data-guide="prev"]').click();
+ await page.locator('.tour-card [data-guide="pause"]').click();
+ await page.locator('[data-action="edit-vision"]').first().click();
  await page.locator('#vision-form input').fill('Avancer sereinement');
- await page.getByRole('button',{name:/Poser ma vision/}).click();
+ await page.locator('button[form="vision-form"]').click();
  await page.waitForFunction(()=>!document.querySelector('#vision-form'));
  await page.evaluate(()=>navigator.serviceWorker.ready);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
- await page.reload();await ready(page);
+ await page.goto(url);await ready(page);
  assert.match(await page.locator('#app').innerText(),/Avancer sereinement/);
  mark('✓ première installation, saisie et conservation de la vision');
  mark('Vérification des identités, étapes et dépendances');

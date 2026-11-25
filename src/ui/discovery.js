@@ -1,0 +1,53 @@
+const escape = x => String(x ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fold=x=>x.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
+const btn=(key,label)=>`<button type="button" class="button button-outline" data-guide="${escape(key)}">${escape(label)}</button>`;
+const chapters=[
+ ['vision','Vision','vision','edit-vision','Écris en une phrase la direction que tu veux prendre.'],
+ ['identite','Identité','cible','new-stone','Nomme la personne que tu souhaites devenir.'],
+ ['pilier','Pilier','detail','new-pillar','Choisis un domaine qui soutient cette identité.'],
+ ['etape','Étape','detail','new-step','Quel premier résultat aimerais-tu atteindre dans ce domaine ?'],
+ ['microAction','Micro-action','detail','new-action','Choisis un geste assez petit pour savoir par où commencer.'],
+ ['capHebdo','Cap Hebdo','week','edit-weekly-objective','Choisis un jour pour ton action. Si elle est encore dans la Réserve, ouvre-la pour la planifier.'],
+ ['habitude','Habitudes','habits','new-habit','Quel geste aimerais-tu répéter ?'],
+ ['reserve','Réserve','reserve','plan-action','Garde ici les actions à planifier plus tard.'],
+ ['boussole','Boussole','tools','decision','Compare une décision avec ce qui compte pour toi.'],
+ ['victoire','Victoires','home','#win-form','Note une petite fierté du jour.'],
+ ['bilan','Bilan de la semaine','week','retro','Regarde ce qui a marché et choisis un ajustement pour la semaine prochaine.']
+];
+const lexIds=['vision','identite','pilier','etape','micro-action','cap-hebdo','habitude','reserve','boussole','victoire','retrospective'];
+const load=name=>fetch(new URL('../data/'+name+'.json',import.meta.url)).then(r=>{if(!r.ok)throw Error('Ressource indisponible');return r.json()});
+export function discovery({navigate,getState,page,canInstall,install,hasDraft,review}){
+ const panel=document.createElement('aside');panel.className='tour-card';panel.hidden=true;panel.setAttribute('aria-label','Visite guidée');document.body.append(panel);
+ const dlg=document.createElement('dialog');dlg.className='guide-dialog';document.body.append(dlg);
+ const key='upa-guide-v1:'+(localStorage.getItem('upa-active-user')||'local');let progress={};try{progress=JSON.parse(localStorage.getItem(key))||{}}catch{}
+ const save=()=>localStorage.setItem(key,JSON.stringify(progress));
+ let samples,lex,active=false,target,phase='',installLink=new URLSearchParams(location.search).get('installer')==='1';
+ function popup(title,html){dlg.innerHTML=`<h2>${escape(title)}</h2>${html}<footer>${btn('close','Fermer')}</footer>`;if(!dlg.open)dlg.showModal();}
+ function installHelp(){popup('Installer Un pas après l’autre',matchMedia('(display-mode: standalone)').matches||navigator.standalone?'<p>L’application est déjà ouverte en mode installé.</p>': canInstall()?'<p>Ajoute l’application à cet appareil.</p>'+btn('install','Installer maintenant'):'<p>Sur iPhone ou iPad, ouvre cette page dans Safari, puis choisis <b>Partager → Sur l’écran d’accueil</b>.</p><p>Sur Android ou ordinateur, cherche « Installer » ou « Ajouter à l’écran d’accueil » dans le menu du navigateur. Si cette option manque, tu peux continuer ici. Sur un appareil géré, les installations peuvent être limitées.</p>');}
+ const entries=()=>lex.flatMap(g=>g.termes);
+ async function glossary(id=''){lex??=await load('lexique');popup('Les mots de l’application','<label>Rechercher un mot<input type="search" id="lex-search"></label><div id="lex-results"></div>');const input=dlg.querySelector('input');
+ function results(){const q=fold(input.value);dlg.querySelector('#lex-results').innerHTML=lex.map(g=>{const terms=g.termes.filter(t=>fold([t.terme,...t.alias||[],t.definition].join(' ')).includes(q));return terms.length?`<h3>${escape(g.titre)}</h3>`+terms.map(t=>`<details id="lex-${escape(t.id)}"><summary>${escape(t.terme)}</summary><p>${escape(t.definition)}</p><p><i>Exemple : ${escape(t.exemple)}</i></p>${(t.voirAussi||[]).map(i=>btn('term:'+i,entries().find(v=>v.id===i)?.terme||i)).join(' ')}</details>`).join(''):''}).join('')||'<p>Aucun mot trouvé.</p>';}results();input.oninput=results;if(id){const el=dlg.querySelector('#lex-'+CSS.escape(id));if(el){el.open=true;el.scrollIntoView({block:'center'});}}}
+ function clean(){target?.classList.remove('tour-target');target=null;panel.hidden=true;}
+ function stop(){active=false;phase='';clean();save();refresh();}
+ async function choose(){samples??=await load('exemples-visite');popup('Quel usage souhaites-tu découvrir ?',btn('usage:personnel','Personnel')+' '+btn('usage:professionnel','Professionnel')+' '+btn('usage:tous','Tous les exemples'));}
+ const current=()=>samples?.find(e=>e.id===progress.id);
+ function openStep(i){if(hasDraft()&&!confirm('Quitter la saisie en cours pour poursuivre la visite ?'))return;progress.step=i;progress.seen=true;save();active=true;phase='step';if(dlg.open)dlg.close();let route=chapters[i][2];if(route==='detail'){const id=page().startsWith('identity/')?decodeURIComponent(page().slice(9)):progress.identity;const stone=getState().stones.find(s=>s.id===id)||getState().stones[0];route=stone?'identity/'+encodeURIComponent(stone.id):'cible';if(stone)progress.identity=stone.id;}navigate(route);requestAnimationFrame(()=>{if(target)target.scrollIntoView({block:'center',behavior:'instant'});place();});}
+ function place(){if(!active||panel.hidden)return;const rect=target?.getBoundingClientRect();const gap=10;const y=rect&&rect.bottom+panel.offsetHeight+gap<innerHeight?rect.bottom+gap:rect&&rect.top>panel.offsetHeight+gap?rect.top-panel.offsetHeight-gap:innerHeight-panel.offsetHeight-12;panel.style.top=Math.max(8,y)+'px';panel.style.left=Math.max(8,Math.min(innerWidth-panel.offsetWidth-8,rect?.left||16))+'px';}
+ function step(){clean();if(!active||phase!=='step'||document.querySelector('#modal-root')?.children.length)return;const i=progress.step,[key,title,,action,help]=chapters[i],e=current();if(!e){stop();return;}
+ if(key==='microAction'){document.querySelector('.identity-pillar')?.setAttribute('open','');document.querySelector('.identity-step')?.setAttribute('open','');}
+ target=[...document.querySelectorAll(action.startsWith('#')?action:'[data-action="'+action+'"]')].find(el=>el.getClientRects().length);
+ const missing=!target;if(!target)target=document.querySelector('#page-content h1');target?.classList.add('tour-target');
+ let example=key==='capHebdo'?[e.capHebdo.jour,e.capHebdo.moment].join(' · '):key==='microAction'?[e.microAction.intitule,e.microAction.critereReussite].filter(Boolean).join(' — '):e[key]||e.approfondissement?.[key];
+ panel.innerHTML=`<small>Visite · ${i+1}/${chapters.length}</small><h3>${escape(title)}</h3><p>${escape(help)}</p>${missing&&['etape','pilier','microAction'].includes(key)?'<small>Pour essayer dans ton espace, commence par créer '+({pilier:'une identité',etape:'un pilier',microAction:'une étape'}[key])+'. Tu peux aussi simplement lire l’exemple.</small>':''}${example?`<p><b>Exemple :</b> ${escape(example)}</p>`:''}<small>Essaie sur la page, ou passe sans rien remplir.</small><div>${i?btn('prev','Précédent'):''} ${btn('next',i===5?'Approfondir la découverte':i===10?'Terminer':'Suivant')} ${i===10?btn('review','Ouvrir mon bilan'):''} ${i===5?btn('reserve-page','Planifier depuis la Réserve'):''} ${btn('chapters','Sommaire')} ${btn('term:'+lexIds[i],'ⓘ Définition')} ${btn('pause','Quitter')}</div>`;panel.hidden=false;place();}
+ function refresh(){const host=document.querySelector('#page-content');if(!host)return;
+ if(page()==='profile'&&!host.querySelector('[data-help]'))host.insertAdjacentHTML('afterbegin',`<section class="section" data-help><h2>Aide et découverte</h2>${btn('start','Relancer la visite guidée')} ${progress.id&&!progress.done?btn('resume','Reprendre la visite'):''} ${btn('lex','Lexique')} ${btn('install-help','Installer l’application')}<p><a class="button button-outline" href="https://github.com/JLEGAC/onestepafteranother/issues/new?template=bug.yml">🐛 Signaler un bug</a> <a class="button button-outline" href="https://github.com/JLEGAC/onestepafteranother/issues/new?template=enhancement.yml">💡 Proposer une amélioration</a></p></section>`);
+ if(page()==='home'&&!active&&!progress.seen&&!installLink&&!host.querySelector('[data-invite]'))host.insertAdjacentHTML('afterbegin',`<section class="section" data-invite><h2>Envie d’un coup de main pour commencer ?</h2><p>Découvre un exemple ou avance avec tes propres idées.</p>${btn('start','Me guider')} ${btn('solo','Explorer seul')}</section>`);step();}
+ document.addEventListener('click',async ev=>{const b=ev.target.closest('[data-guide]');if(!b)return;const k=b.dataset.guide;
+ try{if(k==='close')dlg.close();else if(k==='install-help')installHelp();else if(k==='install'){dlg.close();await install();}else if(k==='lex'||k.startsWith('term:'))await glossary(k.split(':')[1]);else if(k==='solo'){progress.seen=true;save();b.closest('[data-invite]').remove();}else if(k==='start')await choose();else if(k==='resume'){samples??=await load('exemples-visite');if(current())openStep(progress.step);else await choose();}
+ else if(k.startsWith('usage:')){const list=samples.filter(e=>k==='usage:tous'||e.usages.includes(k.slice(6)));popup('Choisis un exemple',list.map(e=>`<p>${btn('sample:'+e.id,e.titre)}<br>${escape(e.resume)}</p>`).join('')+(list.length?btn('sample:'+list[Math.floor(Math.random()*list.length)].id,'Choisir pour moi'):''));}
+ else if(k.startsWith('sample:')){progress={id:k.slice(7),step:0,seen:true,done:false};openStep(0);}
+ else if(k==='chapters')popup('Aller à un chapitre',chapters.map((c,i)=>btn('jump:'+i,c[1])).join(' '));else if(k.startsWith('jump:'))openStep(Number(k.slice(5)));else if(k==='review')review();else if(k==='reserve-page')navigate('reserve');else if(k==='pause')stop();else if(k==='prev')openStep(progress.step-1);else if(k==='next'){if(progress.step<10)openStep(progress.step+1);else{progress.done=true;stop();popup('Tu as terminé la visite','<p>Les exemples restent dans la visite. Seules les données que tu as enregistrées dans les formulaires font partie de ton espace.</p>');}}
+ }catch(err){popup('Aide indisponible','<p>'+escape(err.message)+'</p>');}});
+ window.addEventListener('resize',place);window.addEventListener('scroll',place,true);new MutationObserver(step).observe(document.querySelector('#modal-root'),{childList:true});
+ if(installLink){installHelp();dlg.addEventListener('close',()=>{installLink=false;refresh();},{once:true});}return {refresh,installChanged(){if(dlg.open&&dlg.querySelector('h2')?.textContent==='Installer Un pas après l’autre')installHelp();}};
+}

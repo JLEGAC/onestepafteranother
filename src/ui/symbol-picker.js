@@ -5,7 +5,13 @@ const emojis = {
   'Habitudes et bien-être': '🌱 pousse graine|🌿 feuille nature|🧘 méditation yoga|🏃 course sport|💧 eau|🥗 repas|😴 sommeil|🪥 hygiène|☕ café|🧹 ménage rangement',
   'Repères et étapes': '🧭 boussole direction|🗓️ calendrier|⏰ horloge|✅ fait terminé|🏁 départ arrivée|🏆 victoire|⭐ étoile|✨ étincelles|🔁 répétition boucle|🪜 échelle étape|🌍 monde ouverture'
 };
-const symbols = '♡ cœur|☆ étoile|◇ losange|○ cercle|◎ cible|☐ case à cocher|✓ coche|↗ progression|→ flèche|↻ boucle|♪ musique|✎ crayon|☀ soleil|☾ lune|✦ éclat|⚑ drapeau|♧ trèfle|⌂ maison|≡ niveaux'.split('|');
+const families = {
+  "Nature et liens": "♡ cœur|♥ cœur plein|♧ trèfle|♣ trèfle plein|♤ pique|♠ pique plein|♢ carreau|♦ carreau plein|☀ soleil|☼ lumière|☾ lune|☽ croissant|☁ nuage|☂ parapluie|☃ neige|❄ flocon|✿ fleur|❀ floraison|⚘ plante|☺ sourire|☻ joie|☕ pause|☘ nature",
+  "Direction et mouvement": "← gauche|→ droite|↑ haut|↓ bas|↖ diagonale|↗ progression|↘ descendre|↙ retour|↔ échange|↕ équilibre|⇄ échanges|⇆ alternance|⇅ alternance verticale|↦ départ|↩ revenir|↪ reprendre|↶ rotation gauche|↷ rotation droite|↺ cycle|↻ boucle|⇑ monter|⇒ avancer|⇓ descendre|⇐ revenir|⇔ relation|➜ prochaine étape|➤ direction",
+  "Projets et repères": "◎ cible|⌂ maison|⚑ drapeau|⚐ objectif|☐ case à cocher|☑ validé|☒ écarté|✓ coche|✔ terminé|✗ annuler|✎ crayon|✐ écrire|✂ découper|✉ courrier|☎ téléphone|☏ appel|⚙ réglages|⚓ ancre|⚖ équilibre|⌛ temps|⌚ montre|⌘ commande|≡ niveaux|∞ continuité|♫ mélodie|♬ notes|♪ musique|♩ note|♯ dièse|♭ bémol",
+  "Formes et étoiles": "☆ étoile|★ étoile pleine|✦ éclat|✧ étincelle|✩ étoile cercle|✪ étoile ronde|✶ étoile six branches|✷ rayons|✸ lumière|✹ soleil rayonnant|✺ rayonnement|✳ astérisque|✴ éclat huit branches|○ cercle|● rond plein|◌ cercle pointillé|◉ centre|◐ demi-cercle gauche|◑ demi-cercle droit|◒ moitié basse|◓ moitié haute|□ carré|■ carré plein|▣ cadre|▤ lignes|▥ colonnes|▦ grille|▧ hachures|△ triangle|▲ triangle plein|▽ triangle bas|▼ pointe basse|◇ losange|◆ losange plein|◈ diamant|◊ facette|◁ triangle gauche|▷ triangle droit"
+};
+const symbols=Object.values(families).flatMap(v=>v.split("|"));
 const palette = { auto: 'Couleur du thème', gold: 'Or', green: 'Vert', blue: 'Bleu', purple: 'Violet', rose: 'Rose' };
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fold = value => value.toLowerCase().replaceAll('œ','oe').replaceAll('æ','ae').normalize('NFD').replace(/\p{M}/gu,'');
@@ -28,10 +34,10 @@ export function symbolPicker(item, field = 'icon', fallback = '') {
     <input hidden name="${field}" value="${esc(value)}">
     <input hidden name="iconColor" value="${colorKey(item?.iconColor)}">
     <p class="symbol-label">Icône <small>(facultatif)</small></p>
-    <div class="symbol-toolbar"><button type="button" class="button button-outline" data-symbol-open aria-expanded="false" aria-controls="symbol-panel"><span data-symbol-preview>${symbolMark(item,field,fallback)}</span> <span data-symbol-label>${value ? 'Changer l’icône' : 'Choisir un émoji ou un symbole'}</span></button>
+    <div class="symbol-toolbar"><button type="button" class="button button-outline" data-symbol-open aria-expanded="false" aria-controls="symbol-panel"><span data-symbol-preview>${symbolMark(item,field,fallback)}</span> <span data-symbol-label>${value ? 'Changer l’icône' : 'Choisir une icône'}</span></button>
     <button type="button" class="text-button" data-symbol-remove ${value ? '' : 'hidden'}>Retirer l’icône</button></div>
     <div class="symbol-panel" id="symbol-panel" hidden>
-      <label>Type<select data-symbol-type><option value="emoji">Émojis</option><option value="mono" ${monochrome(value) ? 'selected' : ''}>Symboles monochromes</option></select></label>
+      <label>Type<select data-symbol-type><option value="emoji">Émojis</option><option value="mono" ${monochrome(value) ? 'selected' : ''}>Icônes discrètes</option></select></label>
       <label data-symbol-category>Catégorie<select><option value="">Toutes</option><option>Récents</option>${Object.keys(emojis).map(k=>`<option>${k}</option>`).join('')}</select></label>
       <label>Rechercher<input type="search" data-symbol-search placeholder="Ex. maison, cœur, calendrier"></label>
       <div class="symbol-grid" data-symbol-grid></div>
@@ -57,15 +63,16 @@ export function bindSymbolPicker(root) {
   const refresh = () => {
     const item = { icon:value.value, iconColor:color.value };
     find('preview').innerHTML = symbolMark(item);
-    find('label').textContent = value.value ? 'Changer l’icône' : 'Choisir un émoji ou un symbole';
+    find('label').textContent = value.value ? 'Changer l’icône' : 'Choisir une icône';
     find('remove').hidden = !value.value;
     colorControl.hidden = !monochrome(value.value);
     colorSelect.value = colorKey(color.value);
   };
   const draw = () => {
-    const mono = type.value === 'mono', cat = category.querySelector('select').value;
-    category.hidden = mono;
-    const entries = mono ? symbols : cat === 'Récents' ? readRecent().map(icon=>all.find(e=>split(e)[0]===icon)).filter(Boolean) : cat ? emojis[cat].split('|') : all;
+    const mono=type.value==='mono',select=category.querySelector('select');
+    if(select.dataset.type!==type.value){select.dataset.type=type.value;select.innerHTML='<option value="">Toutes</option>'+(!mono?'<option>Récents</option>':'')+Object.keys(mono?families:emojis).map(x=>`<option>${x}</option>`).join('');}
+    grid.classList.toggle('discrete',mono);const cat=select.value;
+    const entries = mono ? (cat?families[cat].split("|"):symbols) : cat === 'Récents' ? readRecent().map(icon=>all.find(e=>split(e)[0]===icon)).filter(Boolean) : cat ? emojis[cat].split('|') : all;
     const query = fold(search.value.trim());
     grid.innerHTML = entries.filter(e=>fold(e).includes(query)).map(e=>{
       const [icon,label]=split(e);

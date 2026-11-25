@@ -17,6 +17,10 @@ Retrouve ses articles, ses livres et ses outils sur son site [Un pas après l'au
 - Suivre tes habitudes et garder une trace de tes victoires.
 - Personnaliser tes identités, piliers, étapes et habitudes avec des émojis ou des symboles recolorables.
 
+[Installer l’application sur cet appareil](https://jlegac.github.io/onestepafteranother/?installer=1) · [Modifier les exemples de visite](src/data/README.md)
+
+Dans **Profil → Aide et découverte**, retrouve le lexique, relance la visite ou reprends-la à la dernière étape.
+
 ## Installation et données
 
 Tu peux utiliser l'application directement sur mobile ou ordinateur. Si ton navigateur le propose, tu peux aussi l'installer depuis son menu ou l'ajouter à ton écran d'accueil. Après un premier chargement en ligne, les fonctions locales sont accessibles hors connexion.
@@ -57,3 +61,11 @@ npm run test:browser
 - [Audit et validation](docs/AUDIT_ET_VALIDATION.md)
 
 Le mode local permet de développer sans configurer de service cloud. Ne place jamais de clé secrète ou de jeton d'accès dans `src/cloud/config.js` ou dans le dépôt.
+
+## Publication
+
+Un push sur `main` (ou un lancement manuel) démarre trois jobs indépendants : contrôles locaux, tests Chromium, production des captures. Chaque job dispose de son propre runner. Le job de captures régénère le manifeste et le précache après les captures, en réutilisant le bundle fournisseur déjà construit. Le déploiement attend les trois succès et publie uniquement cet artefact final. Un nouveau lancement annule le précédent.
+
+## Vie du projet
+
+[Code de conduite](CODE_OF_CONDUCT.md) · [Signaler une faille en privé](SECURITY.md) · [Conditions de réutilisation](LICENSE.md)

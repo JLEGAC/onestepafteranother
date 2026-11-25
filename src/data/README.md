@@ -1,13 +1,13 @@
 # Tenir à jour les exemples de la visite guidée
 
-[exemples-visite.json](exemples-visite.json) contient les scénarios de démonstration. Quand la visite guidée sera reliée à ce fichier, elle proposera les exemples dans l'ordre de la liste. Les exemples serviront à montrer l'application, sans être enregistrés dans les données de l'utilisateur.
+[exemples-visite.json](exemples-visite.json) contient les scénarios de démonstration. La visite guidée propose les exemples dans l'ordre de la liste. Les exemples servent à montrer l'application, sans être enregistrés dans les données de l'utilisateur.
 
 ## Modifier ou ajouter un exemple
 
 1. Pour modifier un exemple, change ses textes et garde son `id` : il permet de retrouver le scénario lors de la reprise de la visite.
 2. Pour en ajouter un, duplique un objet complet dans la liste, donne-lui un `id` inédit et adapte son contenu. Sépare les objets par des virgules, sans virgule après le dernier. Garde les guillemets doubles autour des clés et des textes.
 3. Pour déplacer un exemple dans le menu, déplace son objet dans la liste. Pour le retirer, supprime l'objet entier.
-4. Vérifie le JSON avant de pousser sur `main`. Une fois la visite raccordée, le déploiement de la PWA publiera les changements.
+4. Vérifie le JSON avant de pousser sur `main`. Le déploiement de la PWA publiera les changements.
 
 | Champ | Que renseigner |
 | --- | --- |

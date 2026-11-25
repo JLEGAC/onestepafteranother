@@ -1,3 +1,7 @@
+import { mergeSnapshots,checkRestore } from "./cloud/restore.js";
+import { dropboxConnected,dropboxMode,safetyCopy } from "./cloud/dropbox.js";
+import { discovery } from "./ui/discovery.js";
+let guide;
 import { bindSymbolPicker, symbolFields, symbolMark } from "./ui/symbol-picker.js";
 import { pillarForm, identityStepForm } from "./identity-views.js";
 import { blockers, dependencyError, editError, scheduleIssue, stepDone, stepActions } from "./identity.js";
@@ -23,7 +27,7 @@ let page = location.hash.slice(1) || "home";
 let pendingAction = null;
 let pendingImport = null;
 let soundCtx = null;
-let installPrompt = null;
+let installPrompt = window.upaInstallEvent || null;
 let resumeDecisionAfterEssentials = false;
 let schedulePointerDrag = null;
 let suppressScheduleClick = "";
@@ -50,6 +54,7 @@ function render() {
   showUpdateStatus();
   cloudUI?.draw();
   dropboxUI?.draw();
+  guide?.refresh();
 }
 
 function navigate(next, replace = false) {
@@ -300,7 +305,7 @@ async function handleAction(action, data = {}) {
   if (action === "dismiss-reminder") { state.daily[todayISO()] ||= {}; state.daily[todayISO()].dismissedReminder = true; persist().then(render); }
   if (action === "new-tool") return showModal(customToolForm());
   if (action === "remove-tool") return removeTool(data.id);
-  if (action === "confirm-import") return confirmImport();
+  if (action === "confirm-import" || action === "merge-import") return confirmImport(action === "merge-import");
   if (action === "install-app") return installApp();
   if (action === "edit-vision") return showModal(visionForm(state, "vision"));
   if (action === "edit-story") return showModal(visionForm(state, "story"));
@@ -796,7 +801,7 @@ async function installApp() {
   if (!installPrompt) return;
   installPrompt.prompt();
   await installPrompt.userChoice;
-  installPrompt = null;
+  installPrompt = null;window.upaInstallEvent=null;
   render();
 }
 
@@ -809,15 +814,24 @@ function importData() {
       const stoneCount = pendingImport.stones.length;
       const actionCount = pendingImport.actions.length;
       const xpCount = pendingImport.xp.total;
-      showModal(modal("Vérifier la sauvegarde", `<div class="import-preview"><span class="import-icon">⬆</span><p>Cette sauvegarde contient :</p><ul><li><b>${stoneCount}</b> identité(s)</li><li><b>${actionCount}</b> micro-action(s)</li><li><b>${xpCount}</b> XP</li></ul><p class="warning-copy">L’import remplacera toutes les données actuellement enregistrées sur cet appareil.</p></div>`, `<button class="button button-outline" data-action="close-modal">Annuler</button><button class="button button-primary" data-action="confirm-import">Remplacer et importer</button>`));
+      showModal(modal("Vérifier la sauvegarde", `<div class="import-preview"><span class="import-icon">⬆</span><p>Cette sauvegarde contient :</p><ul><li><b>${stoneCount}</b> identité(s)</li><li><b>${actionCount}</b> micro-action(s)</li><li><b>${xpCount}</b> XP</li></ul><p class="warning-copy">Cet appareil contient ${state.stones.length} identité(s) et ${state.actions.length} micro-action(s). Une copie de sécurité sera créée avant toute modification.</p></div>`, `<button class="button button-outline" data-action="close-modal">Annuler</button><button class="button button-primary" data-action="confirm-import">Remplacer et importer</button><button class="button button-outline" data-action="merge-import">Fusionner</button>`));
     } catch (error) { alert(error.message || "Impossible de lire cette sauvegarde."); }
   });
   input.click();
 }
 
-async function confirmImport() {
+async function confirmImport(merge) {
   if (!pendingImport) return;
-  state = pendingImport; pendingImport = null; await persist(); closeModal(); render(); navigate("home", true); toast("Sauvegarde importée.", "⬆");
+  const source=pendingImport;const before=structuredClone(state);
+  let next=source;
+  if(merge){const preview=mergeSnapshots(before,source);next=preview.data;
+    if(preview.conflicts.length){const side=prompt('Valeurs différentes : '+preview.conflicts.slice(0,12).join(', ')+'. Priorité à : 1 = appareil, 2 = fichier','1');if(!['1','2'].includes(side))return;if(side==='2')next=mergeSnapshots(before,source,'remote').data;}}
+  if(!confirm('Appliquer '+(merge?'la fusion':'le remplacement')+' ? Résultat : '+next.stones.length+' identité(s), '+next.actions.length+' micro-action(s).'))return;
+  pendingImport=null;
+  try{if(merge)checkRestore(next);await flushAll();await backupRecord(scope(),before);if(dropboxMode()){if(!dropboxConnected())throw Error('Reconnecte Dropbox pour créer la copie de sécurité.');await safetyCopy(before);}
+    if(JSON.stringify(before)!==JSON.stringify(state))throw Error('Les données ont changé. Recommence l’import.');
+    await saveState(next);state=next;closeModal();navigate("home",true);toast("Sauvegarde importée.","⬆");
+  }catch(e){alert(e.message);}
 }
 
 function resetData() {
@@ -825,16 +839,9 @@ function resetData() {
   state = createInitialState(); persist().then(() => { render(); closeModal(); navigate("home", true); });
 }
 
-function addOnboarding() {
-  if (!state.profile.vision) {
-    showModal(modal("Mon premier pas", `<div class="onboarding-mark">✦</div><p class="onboarding-copy">Avant de remplir ton espace, pose quelques mots sur la direction que tu souhaites atteindre.</p><form id="vision-form"><label>Mon identité en une phrase courte <small>(Quelle personne souhaites-tu être ?)</small><input name="vision" required maxlength="180" autofocus placeholder="Ex. Créer dans la joie, préserver ma paix d’esprit et rayonner."></label><p class="form-hint">Tu pourras enrichir ta Vision au fil du temps.</p></form>`, `<button type="submit" class="button button-primary wide" form="vision-form">Poser ma vision <span>↗</span></button>`));
-    bindModalInteractions();
-  }
-}
-
 window.addEventListener("popstate", () => { page = location.hash.slice(1) || "home"; render(); });
 window.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
-window.addEventListener("beforeinstallprompt", event => { event.preventDefault(); installPrompt = event; render(); });
+window.addEventListener("beforeinstallprompt", event => { event.preventDefault(); installPrompt = event; guide?.installChanged(); if(!hasDraft()) render(); });
 window.addEventListener("appinstalled", () => { installPrompt = null; render(); toast("Un pas après l’autre est installé sur ton appareil.", "📲"); });
 
 function showUpdateStatus() { const el=document.querySelector("#update-check-status");if(el)el.textContent=updates?.status || ""; }
@@ -853,11 +860,12 @@ window.addEventListener('storage', event => {
   veil.innerHTML = '<section><h2>Le compte a changé dans une autre fenêtre</h2><p>Recharge cette fenêtre pour continuer avec le bon compte. Tu peux exporter les données affichées avant de recharger.</p><button class="button" data-copy>Exporter</button><button class="button" data-reload>Recharger</button></section>';
   veil.querySelector('[data-copy]').onclick=exportData; veil.querySelector('[data-reload]').onclick=()=>location.reload(); document.body.append(veil);
 });
+guide=discovery({navigate,getState:()=>state,page:()=>page,canInstall:()=>!!installPrompt,install:installApp,review:()=>handleAction("retro",{}),hasDraft});
 updates=initUpdates({hasDraft,flush:flushAll,enabled:()=>state.preferences.autoUpdates !== false,onStatus:()=>showUpdateStatus()});
 render();
 cloudUI=initCloud({flush:flushAll,hasDraft:()=>hasDraft()||pendingWrites()>0||operations.size>0,apply:next=>{state=next;closeModal();render();},openProfile:()=>navigate('profile')});
-dropboxUI=await initDropboxUI({flush:flushAll,getState:()=>state,backup:()=>backupRecord(scope(),state),replace:async next=>{state=next;await persist();closeModal();render();}});
-if(!scope()) addOnboarding();
+dropboxUI=await initDropboxUI({flush:flushAll,getState:()=>state,backup:()=>backupRecord(scope(),state),replace:async next=>{await saveState(next);state=next;closeModal();render();}});
+
 
 // Les relancements et raccourcis réutilisent la fenêtre sans perdre les saisies.
 if ("launchQueue" in window) {

@@ -9,7 +9,9 @@ Dans Profil, l'utilisateur peut choisir Supabase ou Dropbox. Un seul fournisseur
 3. Ajoute l'URI de redirection exacte `https://jlegac.github.io/onestepafteranother/` dans les réglages OAuth de l'application Dropbox.
 4. Copie uniquement l'App key publique dans `dropboxAppKey` de `src/cloud/config.js`, puis reconstruis et publie la PWA. N'ajoute aucun App secret.
 
-Dropbox stocke un état JSON complet dans le dossier de l'application, une copie `pas-a-pas-latest.json` et des versions datées (20 maximum). Les sauvegardes incluent les images de Vision. Une sauvegarde automatique est lancée après les modifications, avec un délai de regroupement. La restauration affiche le contenu avant confirmation et crée une copie locale de l'état remplacé. L'application vérifie la dernière sauvegarde à l'ouverture pour permettre de récupérer le travail sur un autre appareil.
+Dropbox conserve la version courante dans `pas-a-pas-latest.json`. Le premier changement sauvegardé de chaque semaine (lundi UTC) donne une archive comme `Backups/pas-a-pas.2026-11-19T11-37-58.bak.json`. Les archives hebdomadaires hors des 12 semaines glissantes sont retirées lors d’une sauvegarde réussie. Les anciennes archives de la version 0.5 restent consultables.
+
+Depuis Profil, **Restaurer depuis Dropbox** permet de comparer, fusionner ou remplacer. Avant l’application du choix, une copie locale et une copie Dropbox (par exemple `Backups/pas-a-pas-avant-restauration-2026-11-20_14-30-00.json`) protègent les données locales. Ces copies de sécurité sont conservées séparément des archives hebdomadaires. En cas de modification distante concurrente, l’écriture s’arrête : compare les versions avant de réessayer.
 
 Le jeton OAuth de Dropbox est conservé localement par le navigateur afin de renouveler l'autorisation. Il n'est pas inclus dans les fichiers de sauvegarde.
 

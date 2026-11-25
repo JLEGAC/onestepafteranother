@@ -169,3 +169,11 @@ button:disabled {opacity:.55;cursor:not-allowed}.step-tools button,.step-add but
 .dropbox-privacy{margin-top:12px;font-size:.9rem;line-height:1.5}
 .dropbox-privacy summary{cursor:pointer;font-weight:600;margin-bottom:6px}
 .dropbox-privacy p{margin:0 0 8px}
+
+@font-face{font-family:IconesDiscretes;src:url('./src/fonts/icones.ttf') format('truetype');font-display:swap}
+.chosen-symbol[class*="symbol-ink-"],.symbol-grid.discrete [data-choice]{font-family:IconesDiscretes,'DejaVu Sans',sans-serif}
+.tour-card,.guide-dialog{background:var(--white,#fffdf7);color:var(--ink,#263d34);border:1px solid var(--line,#aaa);border-radius:16px;box-shadow:0 8px 35px #0003;padding:16px}
+.tour-card{z-index:30;position:fixed;width:min(350px,calc(100vw - 16px));max-height:50dvh;overflow:auto;box-sizing:border-box}
+.tour-card h3,.guide-dialog h2{margin:.25em 0}.tour-card p{margin:.5em 0}.tour-card div{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}.tour-card .button{padding:5px 9px}
+.tour-target{outline:3px solid #b08332;outline-offset:3px}.guide-dialog{max-height:80dvh;width:min(90vw,540px);overflow:auto}.guide-dialog::backdrop{background:#13251d80}.guide-dialog summary{cursor:pointer;font-weight:bold;padding:.4rem}.guide-dialog footer{margin-top:1rem}
+.guide-dialog[open]::backdrop{background:rgb(20 31 27 / 50%)}.guide-dialog .button{margin:2px}.guide-dialog footer{text-align:right}.tour-card small{display:block}.tour-card[hidden]{display:none}

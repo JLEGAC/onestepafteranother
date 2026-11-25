@@ -5,7 +5,7 @@ import path from 'node:path';
 const root=new URL('../',import.meta.url).pathname;
 process.chdir(root);
 await mkdir('vendor',{recursive:true});
-await build({stdin:{contents:"export { createClient } from '@supabase/supabase-js';",resolveDir:root},bundle:true,format:'esm',platform:'browser',outfile:'vendor/supabase.js',minify:true,legalComments:'eof'});
+if(!process.argv.includes("--reuse-vendor"))await build({stdin:{contents:"export { createClient } from '@supabase/supabase-js';",resolveDir:root},bundle:true,format:'esm',platform:'browser',outfile:'vendor/supabase.js',minify:true,legalComments:'eof'});
 const all=[];
 async function collect(dir){for(const e of await readdir(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())await collect(p);else all.push(p);}}
 await collect('src');await collect('vendor');
