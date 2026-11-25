@@ -5,17 +5,12 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
-  deploy:
+  controles:
     runs-on: ubuntu-24.04
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
@@ -23,20 +18,49 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run check && npm test && npm run build
-      - name: Vérifier les parcours navigateur et les mises à jour
-        run: |
-          npx playwright install --with-deps chromium
-          npm run test:browser
+      - run: npm run check && npm test
+  navigateur:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+  captures:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
       - name: Produire les captures du site
         run: |
           python3 -m http.server 8765 --directory _site > /tmp/pasapas-http.log 2>&1 &
           curl --fail --silent --retry 10 --retry-delay 1 --retry-connrefused http://127.0.0.1:8765/ > /dev/null
           node scripts/screenshots.cjs
-          npm run build
+          npm run build -- --reuse-vendor
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+  deploy:
+    needs: [controles, navigateur, captures]
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - uses: actions/deploy-pages@v5
         id: deployment
