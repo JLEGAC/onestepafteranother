@@ -1,0 +1,339 @@
+[
+  {
+    "id": "donner-du-sens",
+    "titre": "Donner du sens",
+    "termes": [
+      {
+        "id": "vision",
+        "terme": "Vision",
+        "definition": "La direction dans laquelle tu veux avancer. Une phrase suffit pour commencer.",
+        "exemple": "Je veux me sentir plus en forme au quotidien.",
+        "voirAussi": [
+          "identite",
+          "mes-importants"
+        ],
+        "alias": [
+          "Ma Vision"
+        ]
+      },
+      {
+        "id": "identite",
+        "terme": "Identité",
+        "definition": "La personne que tu veux devenir ou la façon dont tu veux agir au fil du temps.",
+        "exemple": "Je prends soin de mon énergie.",
+        "voirAussi": [
+          "vision",
+          "pilier",
+          "habitude"
+        ]
+      },
+      {
+        "id": "pilier",
+        "terme": "Pilier",
+        "definition": "Un domaine sur lequel tu peux agir pour faire vivre une identité. Un pilier peut regrouper plusieurs étapes.",
+        "exemple": "Bouger régulièrement.",
+        "voirAussi": [
+          "identite",
+          "etape"
+        ]
+      },
+      {
+        "id": "mes-importants",
+        "terme": "Mes importants",
+        "definition": "Ce que tu veux préserver ou faire grandir parce que ça compte pour toi. Tu peux t'en servir pour éclairer un choix.",
+        "exemple": "Garder une vraie pause le midi.",
+        "voirAussi": [
+          "vision",
+          "boussole"
+        ],
+        "alias": [
+          "Valeurs"
+        ]
+      },
+      {
+        "id": "boussole",
+        "terme": "Boussole",
+        "definition": "L'outil Éclairer un choix t'aide à examiner une proposition à la lumière de tes importants. La décision reste la tienne.",
+        "exemple": "Accepter une réunion sur ma pause ou proposer un autre horaire ?",
+        "voirAussi": [
+          "mes-importants"
+        ],
+        "alias": [
+          "Éclairer un choix",
+          "Décision"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "passer-a-laction",
+    "titre": "Passer à l'action",
+    "termes": [
+      {
+        "id": "etape",
+        "terme": "Étape",
+        "definition": "Un résultat intermédiaire à atteindre dans un pilier. Plusieurs micro-actions peuvent t'aider à y arriver.",
+        "exemple": "Trouver un trajet de marche qui tient dans ma pause déjeuner.",
+        "voirAussi": [
+          "pilier",
+          "sous-etape",
+          "micro-action"
+        ]
+      },
+      {
+        "id": "sous-etape",
+        "terme": "Sous-étape",
+        "definition": "Une partie d'une étape que tu veux traiter à part. Elle peut regrouper ses propres actions.",
+        "exemple": "Pour préparer une réunion, clarifier d'abord la question à trancher.",
+        "voirAussi": [
+          "etape",
+          "micro-action"
+        ]
+      },
+      {
+        "id": "micro-action",
+        "terme": "Micro-action",
+        "definition": "Un geste précis que tu peux faire et marquer comme terminé. Si l'action est trop grosse, cherche un premier geste plus petit.",
+        "exemple": "Tester un trajet en marchant 10 minutes.",
+        "voirAussi": [
+          "etape",
+          "critere-de-reussite",
+          "taille-effort",
+          "habitude"
+        ],
+        "alias": [
+          "Action",
+          "Petit pas"
+        ]
+      },
+      {
+        "id": "critere-de-reussite",
+        "terme": "Critère de réussite",
+        "definition": "Le résultat que tu peux constater pour savoir qu'une action est terminée. Tu peux le préciser dès sa création.",
+        "exemple": "C'est fait quand j'ai noté si le trajet aller-retour tient en 10 minutes.",
+        "voirAussi": [
+          "micro-action"
+        ],
+        "alias": [
+          "Comment sauras-tu que c'est fait ?"
+        ]
+      },
+      {
+        "id": "taille-effort",
+        "terme": "Taille d'effort",
+        "definition": "Une estimation pour comparer les actions et prévoir une semaine réaliste. S : moins de 15 min ; M : 15 à 30 min ; L : d'une demi-journée à 2 jours ; XL : environ une semaine ; XXL : une action à découper.",
+        "exemple": "Je classe ma marche de 10 minutes en S.",
+        "voirAussi": [
+          "micro-action",
+          "rocher"
+        ],
+        "alias": [
+          "S",
+          "M",
+          "L",
+          "XL",
+          "XXL"
+        ]
+      },
+      {
+        "id": "rocher",
+        "terme": "Rocher",
+        "definition": "Une action de taille XXL qui mérite d'être divisée en plusieurs gestes plus faciles à faire.",
+        "exemple": "Remplacer « organiser tous les repas du mois » par « noter deux idées pour les soirs chargés » comme premier pas.",
+        "voirAussi": [
+          "taille-effort",
+          "micro-action"
+        ],
+        "alias": [
+          "XXL",
+          "Découper cette action"
+        ]
+      },
+      {
+        "id": "a-faire-apres",
+        "terme": "À faire après",
+        "definition": "Un lien que tu ajoutes quand une action ou une étape doit attendre qu'un préalable soit terminé.",
+        "exemple": "Je dois recevoir le document avant de pouvoir le relire.",
+        "voirAussi": [
+          "micro-action",
+          "etape",
+          "blocage"
+        ],
+        "alias": [
+          "Dépendance",
+          "Préalable"
+        ]
+      },
+      {
+        "id": "blocage",
+        "terme": "Blocage",
+        "definition": "Ce qui t'empêche d'avancer sur une action. Le nommer t'aide à trouver quoi ajuster : demander de l'aide, clarifier le résultat ou réduire la taille de l'action.",
+        "exemple": "Je ne peux pas envoyer le dossier : il manque un avis. Mon prochain geste peut être de le demander.",
+        "voirAussi": [
+          "a-faire-apres",
+          "micro-action",
+          "retrospective"
+        ],
+        "alias": [
+          "On ajuste le pas ?",
+          "Obstacle"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "organiser-sa-semaine",
+    "titre": "Organiser sa semaine",
+    "termes": [
+      {
+        "id": "cap-hebdo",
+        "terme": "Cap Hebdo",
+        "definition": "L'espace où tu choisis ton objectif de la semaine et organises les actions que tu veux y faire.",
+        "exemple": "Je prévois de tester mon trajet mercredi midi.",
+        "voirAussi": [
+          "objectif-de-la-semaine",
+          "bloc-de-journee",
+          "reserve",
+          "retrospective"
+        ],
+        "alias": [
+          "Cap hebdomadaire"
+        ]
+      },
+      {
+        "id": "objectif-de-la-semaine",
+        "terme": "Objectif de la semaine",
+        "definition": "Le résultat que tu veux privilégier cette semaine. Il t'aide à choisir les actions à mettre dans ton Cap Hebdo.",
+        "exemple": "D'ici dimanche, avoir trouvé un trajet pour ma pause déjeuner.",
+        "voirAussi": [
+          "cap-hebdo",
+          "etape"
+        ],
+        "alias": [
+          "Cap prioritaire"
+        ]
+      },
+      {
+        "id": "bloc-de-journee",
+        "terme": "Bloc de journée",
+        "definition": "Le moment où tu prévois de faire une action : matin, midi, après-midi ou soir. Tu peux aussi choisir Toute la journée.",
+        "exemple": "Je place mon essai de marche dans le bloc Midi de mercredi.",
+        "voirAussi": [
+          "cap-hebdo",
+          "focus-du-jour"
+        ],
+        "alias": [
+          "Bloc de temps",
+          "Créneau"
+        ]
+      },
+      {
+        "id": "focus-du-jour",
+        "terme": "Focus du jour",
+        "definition": "Sur l'accueil, l'endroit où tu retrouves les actions prévues aujourd'hui.",
+        "exemple": "Mercredi, je retrouve mon essai de marche dès l'ouverture de l'application.",
+        "voirAussi": [
+          "cap-hebdo",
+          "bloc-de-journee"
+        ]
+      },
+      {
+        "id": "reserve",
+        "terme": "Réserve",
+        "definition": "La liste des actions que tu veux garder pour plus tard. Tu peux les réordonner et en choisir quand tu prépares ta semaine.",
+        "exemple": "Repérer un deuxième trajet de marche quand le premier sera testé.",
+        "voirAussi": [
+          "cap-hebdo",
+          "a-rattacher"
+        ],
+        "alias": [
+          "Pour plus tard"
+        ]
+      },
+      {
+        "id": "a-rattacher",
+        "terme": "À rattacher",
+        "definition": "La liste des actions auxquelles tu n'as pas encore associé d'identité.",
+        "exemple": "J'ai noté « repérer un trajet » rapidement ; je l'associe ensuite à mon identité liée à l'énergie.",
+        "voirAussi": [
+          "identite",
+          "micro-action",
+          "reserve"
+        ],
+        "alias": [
+          "À rattacher plus tard",
+          "Inbox"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "faire-le-point",
+    "titre": "Faire le point",
+    "termes": [
+      {
+        "id": "habitude",
+        "terme": "Habitude",
+        "definition": "Un geste que tu veux répéter à ton rythme. Tu peux suivre les jours où tu l'as fait.",
+        "exemple": "Marcher 10 minutes au déjeuner deux fois par semaine.",
+        "voirAussi": [
+          "micro-action",
+          "identite"
+        ],
+        "alias": [
+          "Habitude aidante"
+        ]
+      },
+      {
+        "id": "batterie",
+        "terme": "Batterie",
+        "definition": "Le niveau d'énergie que tu ressens aujourd'hui et que tu peux noter sur l'accueil.",
+        "exemple": "Je note 50 % d'énergie et je choisis de faire un petit pas.",
+        "voirAussi": [
+          "humeur",
+          "focus-du-jour"
+        ],
+        "alias": [
+          "Énergie"
+        ]
+      },
+      {
+        "id": "humeur",
+        "terme": "Humeur",
+        "definition": "La façon dont tu te sens aujourd'hui, que tu peux noter sur l'accueil avec un symbole.",
+        "exemple": "Je choisis le symbole qui correspond le mieux à mon ressenti.",
+        "voirAussi": [
+          "batterie"
+        ]
+      },
+      {
+        "id": "victoire",
+        "terme": "Victoire",
+        "definition": "Un progrès dont tu veux garder une trace, même s'il est petit ou imprévu.",
+        "exemple": "J'ai trouvé un trajet qui tient dans ma pause, même pendant une semaine chargée.",
+        "voirAussi": [
+          "retrospective",
+          "habitude"
+        ],
+        "alias": [
+          "Petite victoire"
+        ]
+      },
+      {
+        "id": "retrospective",
+        "terme": "Rétrospective du Cap Hebdo",
+        "definition": "Le bilan où tu regardes ce que tu as accompli, ce qui t'a aidé ou freiné et ce que tu veux ajuster pour la suite.",
+        "exemple": "Le midi fonctionne bien. La semaine prochaine, j'essaie aussi le vendredi.",
+        "voirAussi": [
+          "cap-hebdo",
+          "victoire",
+          "blocage"
+        ],
+        "alias": [
+          "Bilan",
+          "Bilan de la semaine"
+        ]
+      }
+    ]
+  }
+]
