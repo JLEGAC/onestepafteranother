@@ -10,10 +10,10 @@
     "test:browser": "node scripts/browser-tests.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.119.0"
+    "@supabase/supabase-js": "2.119.2"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.16",
+    "@electric-sql/pglite": "0.5.17",
     "esbuild": "0.28.2",
     "fake-indexeddb": "6.2.8",
     "playwright": "1.65.1"
